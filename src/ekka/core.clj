@@ -1,6 +1,5 @@
 (ns ekka.core)
 
-
 (def user-database [])
 
 (var user-database)
@@ -27,11 +26,6 @@
                                   "Tomasz"
                                   "Pilot"))))
 
-(:email (User. (Credential. "admin" "admin")
-               (Permission. 1 "admin")
-               "admin@admin.pl"
-               "Admin"
-               "Administrowicz"))
 
 (defn login [])
 (defn register [])
@@ -40,6 +34,7 @@
     (first (filter #((and
                       (comprt credential %1)
                       (comprt credential %2)))))))
+
 
 (defmacro create-field-and
   ([] false)
@@ -51,24 +46,37 @@
             `(= (~i ~key-typed1) (~i ~key-typed2)))]
      `(and ~@a))))
 
-((create-field-and (User. (Credential. "admin" "admin")
-                          (Permission. 1 "admin")
-                          "admin@admin.pl"
-                          "Admin"
-                          "Administrowicz")) (User. (Credential. "admin" "admin")
+(defmacro create-field-and
+  ([] false)
+  ([key-typed]
+   (fn [object-to-compare]
+     `(create-field-and key-typed object-to-compare)))
+  ([key-typed1 key-typed2]
+   (let [a (for [i (keys key-typed1)]
+            `(= (~i ~key-typed1) (~i ~key-typed2)))]
+     `(and ~@a))))
+
+
+(let [[key-typed1 key-typed2] [(Credential. "admin" "admin")
+                               (Credential. "1sa" "1231")
+                               ]]
+  (let [key-list [key-typed1 key-typed2]
+        a (for [i (keys key-typed1)]
+            (let [cmpr (map (fn [kt] (i kt)) key-list)]
+              `(= ~@cmpr)))]
+    `(and ~@a)))
+
+
+
+(create-field-and (User. (Credential. "admin" "admin")
+                         (Permission. 1 "admin")
+                         "admin@admin.pl"
+                         "Admin"
+                         "Administrowicz")
+                  (User. (Credential. "admin" "admin")
                          (Permission. 1 "admin")
                          "admin@admin.pl"
                          "Admin"
                          "Administrowicz"))
 
-(create-field-and (User. (Credential. "admin" "admin")
-                          (Permission. 1 "admin")
-                          "admin@admin.pl"
-                          "Admin"
-                          "Administrowicz")
-                  (User. (Credential. "admin" "admin")
-                          (Permission. 1 "admin")
-                          "admin@admin.pl"
-                          "Admin"
-                          "Administrowicz"))
 

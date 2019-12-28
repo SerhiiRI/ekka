@@ -36,47 +36,57 @@
                       (comprt credential %2)))))))
 
 
-(defmacro create-field-and
-  ([] false)
-  ([key-typed]
-   (fn [object-to-compare]
-     `(create-field-and key-typed object-to-compare)))
-  ([key-typed1 key-typed2]
-   (let [a (for [i (keys key-typed1)]
-            `(= (~i ~key-typed1) (~i ~key-typed2)))]
-     `(and ~@a))))
 
 (defmacro create-field-and
-  ([] false)
+  ([a] false)
   ([key-typed]
-   (fn [object-to-compare]
-     `(create-field-and key-typed object-to-compare)))
-  ([key-typed1 key-typed2]
-   (let [a (for [i (keys key-typed1)]
-            `(= (~i ~key-typed1) (~i ~key-typed2)))]
+   (partial create-field-and key-typed))
+  ([key-typed1 key-typed2 & {:keys [exclude] :or {exclude []}}]
+   {:pre [(if (empty? exclude) true (keyword? (first exclude)))]}
+   (let [a (for [i (keys (eval key-typed1))
+                 :when (nil? (first (filter #(= i %) exclude)))]
+             `(= (~i ~key-typed1) (~i ~key-typed2)))]
+     `(and ~@a)))
+  ([a b & c {:keys [exclude] :or {exclude []}}]
+   {:pre [(if (empty? exclude) true (keyword? (first exclude)))]}
+   (let [a (for [i (keys (eval key-typed1))
+                 :when (nil? (first (filter #(= i %) exclude)))]
+             `(= (~i ~key-typed1) (~i ~key-typed2)))]
      `(and ~@a))))
 
+(do (defn argument-tester [& args]
+      (let [number (.indexOf args :e)
+            kparm (get (vec args) (+ number 1))]
+        (if (seqable? kparm)
+          kparm
+          [kparm])))
+    (chuj 1 2 3 4 :e ['kparm] ))
 
-(let [[key-typed1 key-typed2] [(Credential. "admin" "admin")
-                               (Credential. "1sa" "1231")
-                               ]]
-  (let [key-list [key-typed1 key-typed2]
-        a (for [i (keys key-typed1)]
-            (let [cmpr (map (fn [kt] (i kt)) key-list)]
-              `(= ~@cmpr)))]
+
+(or nil 23 )
+
+
+(create-field-and (Credential. "admin" "admin") 
+                  (Credential. "suka" "admin")
+                  :exclude [:login])
+
+
+
+(let [a (create-field-and (Credential. "admin" "admin") 
+                          (Credential. "admin" "admin"))]
+  (println a))
+
+
+(defmacro unless [pred a b]
+  `(if (not ~pred) ~a ~b))
+
+;; usage:
+
+
+
+
+(let [[key-typed1 key-typed2] [(Credential. "admin" "admin") 
+                               (Credential. "admin" "admin")]]
+  (let [a (for [i (keys key-typed1)]
+            `(= (~i ~key-typed1) (~i ~key-typed2)))]
     `(and ~@a)))
-
-
-
-(create-field-and (User. (Credential. "admin" "admin")
-                         (Permission. 1 "admin")
-                         "admin@admin.pl"
-                         "Admin"
-                         "Administrowicz")
-                  (User. (Credential. "admin" "admin")
-                         (Permission. 1 "admin")
-                         "admin@admin.pl"
-                         "Admin"
-                         "Administrowicz"))
-
-

@@ -125,6 +125,7 @@
 
 
 (let [a (create-field-and (Credential. "admin" "admin") 
+                          (Credential. "user" "user") 
                           (Credential. "admin" "admin"))]
   (println a))
 

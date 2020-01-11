@@ -1,4 +1,7 @@
-(ns ekka.core)
+(ns ekka.core
+  (:require
+   ;; [ekka.database.tool :as tool]
+   [clojure.string :as string]))
 
 (def user-database [])
 
@@ -143,3 +146,80 @@
   (let [a (for [i (keys key-typed1)]
             `(= (~i ~key-typed1) (~i ~key-typed2)))]
     `(and ~@a)))
+
+
+;;; sql-tool
+(defmacro select [value & {:as args}]
+  ;; (let [from-table (str "FROM " (symbol value))
+  ;;       column (if ())]
+  ;;   (println args))
+  (println args))
+
+(select :user
+        :where {:bliat 1 :suka 2}
+        :column [:bliat :suka])
+
+(select user
+        :join {credential :id_credential
+               data :id_data}
+        :where {:bliat 1 :suka 2})
+
+
+
+(println (mapcat identity {:suka :fuck}))
+
+(str "FROM " (symbol :sukas))
+
+(get-in {:where {:bliat 1, :suka 2}, :column [:bliat :suka]} [:where :bliat])
+(get {:where {:bliat "slia", :suka 2}, :column [:bliat :suka]} :where )
+
+
+
+;;; pair where pattern
+(defn pair-where-pattern [k v]
+  (format (cond
+            (string? v) "%s=\"%s\""
+            (or (boolean? v) (number? v)) "%s=%s"
+            :else "%s=%s")
+          (symbol k)
+          v))
+
+
+(defn tkey [k]
+  ;; :table.value => table.value 
+  (string/split (str (symbol k)) #"\."))
+
+
+;;; join string constructor
+(defn join-string [current-string sql-dictionary]
+  (str current-string " "
+       (if-let [columns (get sql-dictionary :column)]
+         (string/join " " (map (comp str symbol) columns))
+         "*") " FROM " table-name))
+
+;;; column string constructor 
+(defn column-string [current-string sql-dictionary table-name]
+  (str current-string " "
+       (if-let [columns (get sql-dictionary :column)]
+         (string/join " " (map (comp str symbol) columns))
+         "*") " FROM " table-name))
+
+
+;;; where string constructor 
+(defn where-string [current-string sql-dictionary]
+  (str current-string (if-let [key-where (get sql-dictionary :where)] 
+     (str " WHERE " (string/join " " (map #(apply pair-where-pattern %) (seq key-where))))
+     "")))
+
+
+
+(column-string "SELECT" {:where {:bliat "slia" :suka 2 :what? true} :column [:bliat :suka]} "user")
+(column-string "SELECT" {} "user")
+(where-string "SELECT * FROM user" {:where {:bliat "slia" :suka 2 :what? true} :column [:bliat :suka]})
+
+
+
+
+
+
+

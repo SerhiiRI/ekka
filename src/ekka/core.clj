@@ -266,11 +266,11 @@
 (column-string "SELECT" {} "user")
 
 (where-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                              :suka 2
-                                              :METADATA.merried true}
-                                      :column [:bliat :suka]
-                                      :join-on {:CREDENTIAL :id_credential
-                                                :METADATA :id_metadata}} "user")
+                                            :suka 2
+                                            :METADATA.merried true}
+                                    :column [:bliat :suka]
+                                    :join-on {:CREDENTIAL :id_credential
+                                              :METADATA :id_metadata}} "user") 
 
 
 

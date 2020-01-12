@@ -160,7 +160,7 @@
         :column [:bliat :suka])
 
 (select user
-        :join {credential :id_credential
+        :join-on {credential :id_credential
                data :id_data}
         :where {:bliat 1 :suka 2})
 
@@ -176,14 +176,21 @@
 
 
 ;;; pair where pattern
-(defn pair-where-pattern [k v]
-  (format (cond
-            (string? v) "%s=\"%s\""
-            (or (boolean? v) (number? v)) "%s=%s"
-            :else "%s=%s")
-          (symbol k)
-          v))
+(defn pair-where-pattern
+  ([k v] (format (cond
+                   (string? v) "%s=\"%s\""
+                   (or (boolean? v) (number? v)) "%s=%s"
+                   :else "%s=%s")
+                 (symbol k)
+                 v))
+  ([k v t] (str t "." (format (cond
+                               (string? v) "%s=\"%s\""
+                               (or (boolean? v) (number? v)) "%s=%s"
+                               :else "%s=%s")
+                             (symbol k)
+                             v))))
 
+(pair-where-pattern :suka "bliat" "user")
 
 (defn tkey [k]
   ;; :table.value => table.value 
@@ -191,11 +198,29 @@
 
 
 ;;; join string constructor
-(defn join-string [current-string sql-dictionary]
+(defn join-on-string [current-string sql-dictionary table-name]
   (str current-string " "
-       (if-let [columns (get sql-dictionary :column)]
-         (string/join " " (map (comp str symbol) columns))
-         "*") " FROM " table-name))
+       (if-let [joins (get sql-dictionary :join-on)]
+         (string/join " "
+                      (if (map? joins)
+                        (map #(let [[table id-table] %]
+                                (format "INNER JOIN %s ON %s.id=%s.%s"
+                                        (symbol table)
+                                        (symbol table)
+                                        table-name
+                                        (symbol id-table)))
+                             joins)
+                        (map #(let [table (symbol %)
+                                    id-table (str "id_" (string/lower-case (symbol %)))]
+                                (format "INNER JOIN %s ON %s.id=%s.%s"
+                                        (symbol table)
+                                        (symbol table)
+                                        table-name
+                                        (symbol id-table)))
+                             joins)))
+         "")))
+
+
 
 ;;; column string constructor 
 (defn column-string [current-string sql-dictionary table-name]
@@ -206,20 +231,46 @@
 
 
 ;;; where string constructor 
-(defn where-string [current-string sql-dictionary]
-  (str current-string (if-let [key-where (get sql-dictionary :where)] 
-     (str " WHERE " (string/join " " (map #(apply pair-where-pattern %) (seq key-where))))
-     "")))
+(defn where-string [current-string sql-dictionary table-name]
+  (str current-string
+       (if-let [key-where (get sql-dictionary :where)]
+         (if (empty? (get sql-dictionary :join-on))
+           (str " WHERE " (string/join " " (map #(apply pair-where-pattern %) (seq key-where))))
+           (str " WHERE " (string/join " " (map #(let [[k v] %]
+                                                   (if (string/includes? k ".")
+                                                     (pair-where-pattern k v)
+                                                     (pair-where-pattern k v table-name))) (seq key-where)))))
+         "")))
 
+(map println {:suka 1 :bliat 2})
 
+(if (empty? nil) true false)
 
-(column-string "SELECT" {:where {:bliat "slia" :suka 2 :what? true} :column [:bliat :suka]} "user")
+(join-on-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+                                              :suka 2
+                                              :METADATA.merried true}
+                                      :column [:bliat :suka]
+                                      :join-on {:CREDENTIAL :id_credential
+                                                :METADATA :id_metadata}} "user")
+
+(join-on-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+                                              :suka 2
+                                              :METADATA.merried true}
+                                      :column [:bliat :suka]
+                                      :join-on [:CREDENTIAL :METADATA]} "user")
+
+(column-string "SELECT" {:where {:bliat "slia" :suka 2 :what? true}
+                         :column [:bliat :suka]
+                         :join-on {:CREDENTIAL :id_credential}} "user")
+
 (column-string "SELECT" {} "user")
-(where-string "SELECT * FROM user" {:where {:bliat "slia" :suka 2 :what? true} :column [:bliat :suka]})
 
-
-
-
+(where-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+                                              :suka 2
+                                              :METADATA.merried true}
+                                      :column [:bliat :suka]
+                                      :join-on {:CREDENTIAL :id_credential
+                                                :METADATA :id_metadata}} "user")
 
 
 

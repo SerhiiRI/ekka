@@ -196,30 +196,57 @@
   ;; :table.value => table.value 
   (string/split (str (symbol k)) #"\."))
 
+;;; not to use 
+(defmacro defsqlrule [rule-name arguments & body]
+  {:pre [(vector? arguments)]}
+  (let [rule-array (string/split (str rule-name) #"\-")  rule-lenght (- (count rule-array) 1)
+        rule-keyword (keyword (string/join "-"(take rule-lenght rule-array)))]
+   `(defn ~rule-name ~arguments
+      (str (first ~arguments) " "
+           (if-let [dictionary (get (second ~arguments) ~rule-keyword)]
+             ~body
+             "")))))
 
-;;; join string constructor
-(defn join-on-string [current-string sql-dictionary table-name]
+(defsqlrule inner-join-string [1 2 3])
+
+(defsqlrule inner-join-string [current-string sql-dictionary table-name]
+  (let [join-formater #(format "INNER JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
+        map-function (if (map? joins)
+                       #(map symbol %)
+                       #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
+    (string/join " " (map #(apply join-formater (map-function %)) joins))))
+
+
+;;; inner join
+(defn inner-join-string [current-string sql-dictionary table-name]
   (str current-string " "
-       (if-let [joins (get sql-dictionary :join-on)]
-         (string/join " "
-                      (if (map? joins)
-                        (map #(let [[table id-table] %]
-                                (format "INNER JOIN %s ON %s.id=%s.%s"
-                                        (symbol table)
-                                        (symbol table)
-                                        table-name
-                                        (symbol id-table)))
-                             joins)
-                        (map #(let [table (symbol %)
-                                    id-table (str "id_" (string/lower-case (symbol %)))]
-                                (format "INNER JOIN %s ON %s.id=%s.%s"
-                                        (symbol table)
-                                        (symbol table)
-                                        table-name
-                                        (symbol id-table)))
-                             joins)))
-         "")))
+       (if-let [joins (get sql-dictionary :inner-join)]
+         (let [join-formater #(format "INNER JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
+               map-function (if (map? joins)
+                          #(map symbol %)
+                          #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
+           (string/join " " (map #(apply join-formater (map-function %)) joins))) "")))
 
+
+;;; left join string constructor
+(defn left-join-string [current-string sql-dictionary table-name]
+  (str current-string " "
+       (if-let [joins (get sql-dictionary :left-join)]
+         (let [join-formater #(format "LEFT JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
+               map-function (if (map? joins)
+                          #(map symbol %)
+                          #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
+           (string/join " " (map #(apply join-formater (map-function %)) joins))) "")))
+
+;;; right join
+(defn right-join-string [current-string sql-dictionary table-name]
+  (str current-string " "
+       (if-let [joins (get sql-dictionary :right-join)]
+         (let [join-formater #(format "RIGHT JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
+               map-function (if (map? joins)
+                          #(map symbol %)
+                          #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
+           (string/join " " (map #(apply join-formater (map-function %)) joins))) "")))
 
 
 ;;; column string constructor 
@@ -242,9 +269,9 @@
                                                      (pair-where-pattern k v table-name))) (seq key-where)))))
          "")))
 
-(map println {:suka 1 :bliat 2})
 
-(if (empty? nil) true false)
+
+
 
 (join-on-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
                                               :suka 2
@@ -258,6 +285,8 @@
                                               :METADATA.merried true}
                                       :column [:bliat :suka]
                                       :join-on [:CREDENTIAL :METADATA]} "user")
+
+
 
 (column-string "SELECT" {:where {:bliat "slia" :suka 2 :what? true}
                          :column [:bliat :suka]

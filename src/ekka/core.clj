@@ -4,7 +4,6 @@
    [clojure.string :as string]))
 
 
-
 (def user-database [])
 
 (var user-database)
@@ -203,8 +202,6 @@
   (bliat 2))
 
 
-(defsqljoinrule inner-join-string)
-(defsqljoinrule left-join-string)
 
 (left-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
                                               :suka 2
@@ -214,24 +211,24 @@
                                                 :METADATA :id_metadata}} "user")
 
 
-(defmacro defsqljoinrule [rule-name]
-  (let [rule-array (string/split (str rule-name) #"\-")  rule-lenght (- (count rule-array) 1)
-        rule-keyword (keyword (string/join "-"(take rule-lenght rule-array)))
-        rule-string (string/join " " (map string/upper-case (take rule-lenght rule-array)))]
-    `(def ~rule-name
-       (join-rule-string ~rule-keyword ~rule-string))))
+;; (defmacro defsqljoinrule [rule-name]
+;;   (let [rule-array (string/split (str rule-name) #"\-")  rule-lenght (- (count rule-array) 1)
+;;         rule-keyword (keyword (string/join "-"(take rule-lenght rule-array)))
+;;         rule-string (string/join " " (map string/upper-case (take rule-lenght rule-array)))]
+;;     `(def ~rule-name
+;;        (join-rule-string ~rule-keyword ~rule-string))))
 
 
-(defn join-rule-string [join-type join-string]
-  (fn [current-string sql-dictionary table-name]
-    (str current-string
-              (if-let [joins (get sql-dictionary join-type)]
-                (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
-                      map-function (if (map? joins)
-                                     #(map symbol %)
-                                     #(list (symbol %)
-                                            (symbol (str "id_" (string/lower-case (symbol %))))))]
-                  (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
+;; (defn join-rule-string [join-type join-string]
+;;   (fn [current-string sql-dictionary table-name]
+;;     (str current-string
+;;               (if-let [joins (get sql-dictionary join-type)]
+;;                 (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
+;;                       map-function (if (map? joins)
+;;                                      #(map symbol %)
+;;                                      #(list (symbol %)
+;;                                             (symbol (str "id_" (string/lower-case (symbol %))))))]
+;;                   (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  END TEST SEGMENT ;;;
@@ -239,14 +236,6 @@
 
 (defsqljoinrule inner-join-string)
 (defsqljoinrule left-join-string)
-
-(outer-right-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                              :suka 2
-                                              :METADATA.merried true}
-                                      :column [:bliat :suka]
-                                      :outer-right-join {:CREDENTIAL :id_credential
-                                                :METADATA :id_metadata}} "user")
-
 
 (defmacro defsqljoinrule [rule-name]
   (let [rule-array (string/split (str rule-name) #"\-")  rule-lenght (- (count rule-array) 1)
@@ -303,8 +292,8 @@
 (defsqljoinrule left-join-string)
 (defsqljoinrule right-join-string)
 ;;; non-standart rule
-(defsqljoinrule outer-right-join-string)
-(defsqljoinrule outer-left-join-string)
+;; (defsqljoinrule outer-right-join-string)
+;; (defsqljoinrule outer-left-join-string)
 
 
 

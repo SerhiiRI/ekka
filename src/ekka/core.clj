@@ -194,102 +194,118 @@
 ;;; START TEST SEGMENT ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; test of creation macro for defining sql stirng rules 
-;;; not to use 
-(defmacro defsqlrule [rule-name arguments & body]
-  {:pre [(vector? arguments)]}
-  (let [rule-array (string/split (str rule-name) #"\-")  rule-lenght (- (count rule-array) 1)
-        rule-keyword (keyword (string/join "-"(take rule-lenght rule-array)))]
-   `(defn ~rule-name ~arguments
-      (str (first ~arguments) " "
-           (if-let [dictionary (get (second ~arguments) ~rule-keyword)]
-             ~body
-             "")))))
+(do
+  (defmacro my-define [name args body]
+   `(def ~name (fn ~args ~body)))
 
-;; (defsqlrule inner-join-string [1 2 3])
+  (my-define bliat [a] 
+             (println a))
+  (bliat 2))
 
-;; (defsqlrule inner-join-string [current-string sql-dictionary table-name]
-;;   (let [join-formater #(format "INNER JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
-;;         map-function (if (map? joins)
-;;                        #(map symbol %)
-;;                        #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
-;;     (string/join " " (map #(apply join-formater (map-function %)) joins))))
-
-{:pre [(symbol? function-name-rule)
-       ()]}
-
-
-(defmacro defsqljoinrule [rule-name]
-  (let [rule-array (string/split (str rule-name) #"\-")  rule-lenght (- (count rule-array) 1)
-        rule-keyword (keyword (string/join "-"(take rule-lenght rule-array)))
-        rule-string (string/join " " (map string/upper-case (take rule-lenght rule-array)))]
-    `(def ~rule-name
-       (fn ([current-string sql-dictionary table-name]
-            (str current-string
-                 (if-let [joins (get sql-dictionary ~rule-keyword)]
-                   (let [join-formater #(format " %s %s ON %s.id=%s.%s" ~rule-string %1 %1 table-name %2)
-                         map-function (if (map? joins)
-                                        #(map symbol %)
-                                        #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
-                     (string/join "" (map #(apply join-formater (map-function %)) joins))) "")))))))
 
 (defsqljoinrule inner-join-string)
+(defsqljoinrule left-join-string)
 
-(inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+(left-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
                                               :suka 2
                                               :METADATA.merried true}
                                       :column [:bliat :suka]
-                                      :inner-join {:CREDENTIAL :id_credential
+                                      :left-join {:CREDENTIAL :id_credential
                                                 :METADATA :id_metadata}} "user")
+
 
 (defmacro defsqljoinrule [rule-name]
   (let [rule-array (string/split (str rule-name) #"\-")  rule-lenght (- (count rule-array) 1)
         rule-keyword (keyword (string/join "-"(take rule-lenght rule-array)))
         rule-string (string/join " " (map string/upper-case (take rule-lenght rule-array)))]
     `(def ~rule-name
-       (fn ([bliat kurwa]
-            (println "sukacz"))))))
+       (join-rule-string ~rule-keyword ~rule-string))))
 
 
-(defmacro my-define [name args body]
-  `(def ~name (fn [a b] ~body)))
+(defn join-rule-string [join-type join-string]
+  (fn [current-string sql-dictionary table-name]
+    (str current-string
+              (if-let [joins (get sql-dictionary join-type)]
+                (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
+                      map-function (if (map? joins)
+                                     #(map symbol %)
+                                     #(list (symbol %)
+                                            (symbol (str "id_" (string/lower-case (symbol %))))))]
+                  (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
 
-(my-define bliat [a]
-           (println a))
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;  END TEST SEGMENT ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defsqljoinrule inner-join-string)
+(defsqljoinrule left-join-string)
+
+(outer-right-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+                                              :suka 2
+                                              :METADATA.merried true}
+                                      :column [:bliat :suka]
+                                      :outer-right-join {:CREDENTIAL :id_credential
+                                                :METADATA :id_metadata}} "user")
+
+
+(defmacro defsqljoinrule [rule-name]
+  (let [rule-array (string/split (str rule-name) #"\-")  rule-lenght (- (count rule-array) 1)
+        rule-keyword (keyword (string/join "-"(take rule-lenght rule-array)))
+        rule-string (string/join " " (map string/upper-case (take rule-lenght rule-array)))]
+    `(def ~rule-name
+       (join-rule-string ~rule-keyword ~rule-string))))
+
+
+(defn join-rule-string [join-type join-string]
+  (fn [current-string sql-dictionary table-name]
+    (str current-string
+              (if-let [joins (get sql-dictionary join-type)]
+                (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
+                      map-function (if (map? joins)
+                                     #(map symbol %)
+                                     #(list (symbol %)
+                                            (symbol (str "id_" (string/lower-case (symbol %))))))]
+                  (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
+
 ;;; inner join
-(defn inner-join-string [current-string sql-dictionary table-name]
-  (str current-string
-       (if-let [joins (get sql-dictionary :inner-join)]
-         (let [join-formater #(format " INNER JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
-               map-function (if (map? joins)
-                          #(map symbol %)
-                          #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
-           (string/join "" (map #(apply join-formater (map-function %)) joins))) "")))
+;; (defn inner-join-string [current-string sql-dictionary table-name]
+;;   (str current-string
+;;        (if-let [joins (get sql-dictionary :inner-join)]
+;;          (let [join-formater #(format " INNER JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
+;;                map-function (if (map? joins)
+;;                           #(map symbol %)
+;;                           #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
+;;            (string/join "" (map #(apply join-formater (map-function %)) joins))) "")))
 
 
 ;;; left join string constructor
-(defn left-join-string [current-string sql-dictionary table-name]
-  (str current-string
-       (if-let [joins (get sql-dictionary :left-join)]
-         (let [join-formater #(format " LEFT JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
-               map-function (if (map? joins)
-                          #(map symbol %)
-                          #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
-           (string/join "" (map #(apply join-formater (map-function %)) joins))) "")))
+;; (defn left-join-string [current-string sql-dictionary table-name]
+;;   (str current-string
+;;        (if-let [joins (get sql-dictionary :left-join)]
+;;          (let [join-formater #(format " LEFT JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
+;;                map-function (if (map? joins)
+;;                           #(map symbol %)
+;;                           #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
+;;            (string/join "" (map #(apply join-formater (map-function %)) joins))) "")))
 
 ;;; right join
-(defn right-join-string [current-string sql-dictionary table-name]
-  (str current-string
-       (if-let [joins (get sql-dictionary :right-join)]
-         (let [join-formater #(format " RIGHT JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
-               map-function (if (map? joins)
-                          #(map symbol %)
-                          #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
-           (string/join "" (map #(apply join-formater (map-function %)) joins))) "")))
+;; (defn right-join-string [current-string sql-dictionary table-name]
+;;   (str current-string
+;;        (if-let [joins (get sql-dictionary :right-join)]
+;;          (let [join-formater #(format " RIGHT JOIN %s ON %s.id=%s.%s" %1 %1 table-name %2)
+;;                map-function (if (map? joins)
+;;                           #(map symbol %)
+;;                           #(list (symbol %) (symbol (str "id_" (string/lower-case (symbol %))))))]
+;;            (string/join "" (map #(apply join-formater (map-function %)) joins))) "")))
+
+;;; standart join rules 
+(defsqljoinrule inner-join-string)
+(defsqljoinrule left-join-string)
+(defsqljoinrule right-join-string)
+;;; non-standart rule
+(defsqljoinrule outer-right-join-string)
+(defsqljoinrule outer-left-join-string)
+
 
 
 ;;; column string constructor 
@@ -298,7 +314,6 @@
        (if-let [columns (get sql-dictionary :column)]
          (str " " (string/join ", " (map (comp str symbol) columns)))
          " *") " FROM " table-name))
-
 
 ;;; where string constructor 
 (defn where-string [current-string sql-dictionary table-name]
@@ -309,11 +324,8 @@
            (str " WHERE " (string/join " " (map #(let [[k v] %]
                                                    (if (string/includes? k ".")
                                                      (pair-where-pattern k v)
-                                                     (pair-where-pattern k v table-name))) (seq key-where))))))))
-
-
-
-
+                                                     (pair-where-pattern k v table-name)))
+                                                (seq key-where))))))))
 
 
 
@@ -386,8 +398,8 @@
                :left-join {:METADATA :id_metadata}}
 
 
-(defmacro create-rule-pipeline []
-  )
+;; (defmacro create-rule-pipeline [dicktionary]
+;;   (if ))
 
 (defmacro select [table-name & {:as args}]
   (let [table-name-symb (gensym 'table-name)

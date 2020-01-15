@@ -62,32 +62,77 @@
 (defn join-rule-string [join-type join-string]
   (fn [current-string sql-dictionary table-name]
     (str current-string
-              (if-let [joins (get sql-dictionary join-type)]
-                (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
-                      map-function (if (map? joins)
-                                     #(map symbol %)
-                                     #(list (symbol %)
-                                            (symbol (str "id_" (string/lower-case (symbol %))))))]
-                  (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
+         (if-let [joins (get sql-dictionary join-type)]
+           (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
+                 map-function (if (map? joins)
+                                #(map symbol %)
+                                #(list (symbol %)
+                                       (symbol (str "id_" (string/lower-case (symbol %))))))]
+             (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
+
+(defn join-rule-string [join-type join-string]
+  (fn [current-string sql-dictionary table-name]
+    (str current-string
+         (if-let [joins (get sql-dictionary join-type)]
+           (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
+                 map-function (if (map? joins)
+                                #(map symbol %)
+                                #(list (symbol %)
+                                       (symbol (str "id_" (string/lower-case (symbol %))))))]
+             (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
 
 
-;; (let [join {:CREDENTIAL :id_credential}]
-;;   (cond
-;;     (symbol? join) "symbol"
-;;     (string? join) "INNER JOIN text ON text.id...."
-;;     (and (map? join) (>= (count join) 1) (keyword? (second (first join)))) "{:REK :id_rek}"
-;;     (and (vector? join) (> (count join) 1) (keyword? (first join))) "[:SUKA :BLIAT]"
-;;     (and (vector? join) (> (count join) 1) (keyword? (first join))) "[\"INNER JOIN text ON text.id....\"...]"))
+(defn join-rule-string [join-type join-string]
+  (fn [current-string sql-dictionary table-name]
+    (str current-string
+         (if-let []))))
 
-;; (defn join-symbol-parse []
-;;   (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
-;;         map-function (if (map? joins)
-;;                        #(map symbol %)
-;;                        #(list (symbol %)
-;;                               (symbol (str "id_" (string/lower-case (symbol %))))))]))
+(let [join ["adsf" "dfa"]]
+  (cond
+    (keyword? join) join-keyword-string
+    (string? join) join-string-string
+    ;;"text ON text.id...."
+    (map? join) (if-let [value-of-key (second (first join))]
+                  (when (keyword? value-of-key) ;; "{:REK :id_rek}"
+                    join-map-keyword-string))
+    (vector? join) (if-let [first-value (first join)]
+                     (cond (keyword? first-value) join-vector-keyword-string
+                           ;; "[:SUKA :BLIAT]"
+                           (string? first-value) join-vector-string-string
+                           (map? first-value) join-vector-map-string))))
+
+(defn join-keyword-string [main-table joining-table]
+  (let [[table join-column] (list (symbol joining-table)
+                                  (symbol (str "id_" (string/lower-case (symbol joining-table)))))]
+    (format "%s ON %s.id=%s.%s" table table main-table join-column)))
+
+(defn join-string-string [main-table on-join-construction]
+  (on-join-construction))
+
+(defn join-map-keyword-string [main-table [k v]]
+  (let [[table join-column] (list (symbol k) (symbol v))]
+    (format "%s ON %s.id=%s.%s" table table main-table join-column)))
+
+(defn join-vector-keyword-string [main-table joining-table]
+  (let [[table join-column] (list (symbol joining-table)
+                                  (symbol (str "id_" (string/lower-case (symbol joining-table)))))]
+    (format "%s ON %s.id=%s.%s" table table main-table join-column)))
+
+(defn join-vector-string-string [main-table on-join-construction]
+  (on-join-construction))
+
+(defn join-vector-map-string [main-table [k v]]
+  (if-let [[[t1 id1]
+            [t2 id2]] (and (some #(= \. %) (str k))
+                           (some #(= \. %) (str v))
+                           (list (string/split (str (symbol k)) #"\.")
+                                 (string/split (str (symbol v)) #"\.")))]
+    (format "%s ON %s=%s" t1 (str (symbol k)) (str(symbol v)))))
 
 
-;;; defining join 
+(let [[[a b]] (seq {:a :b})]
+  (println a b))
+
 (defsqljoinrule inner-join-string)
 (defsqljoinrule left-join-string)
 (defsqljoinrule right-join-string)

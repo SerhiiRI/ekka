@@ -13,10 +13,12 @@
                          (or (boolean? value) (number? value)) "%s=%s"
                          :else "%s=%s") (symbol key) value)))
 
-(defn tkey [k]
-  ;; :table.value => table.value 
-  (string/split (str (symbol k)) #"\."))
-
+(defn tkey
+  "Function split dot-linked keyword name
+  and return array of string, divided on <.>
+  character
+  :table.value => ('table' 'value')"
+  [k] (string/split (str (symbol k)) #"\."))
 
 
 
@@ -82,10 +84,6 @@
              (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
 
 
-(defn join-rule-string [join-type join-string]
-  (fn [current-string sql-dictionary table-name]
-    (str current-string
-         (if-let []))))
 
 (let [join ["adsf" "dfa"]]
   (cond

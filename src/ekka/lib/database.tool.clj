@@ -61,51 +61,81 @@
        (join-rule-string ~rule-keyword ~rule-string))))
 
 
+;; (defn join-rule-string [join-type join-string]
+;;   (fn [current-string sql-dictionary table-name]
+;;     (str current-string
+;;          (if-let [joins (get sql-dictionary join-type)]
+;;            (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
+;;                  map-function (if (map? joins)
+;;                                 #(map symbol %)
+;;                                 #(list (symbol %)
+;;                                        (symbol (str "id_" (string/lower-case (symbol %))))))]
+;;              (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
+
+
 (defn join-rule-string [join-type join-string]
   (fn [current-string sql-dictionary table-name]
     (str current-string
          (if-let [joins (get sql-dictionary join-type)]
-           (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
-                 map-function (if (map? joins)
-                                #(map symbol %)
-                                #(list (symbol %)
-                                       (symbol (str "id_" (string/lower-case (symbol %))))))]
-             (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
-
-(defn join-rule-string [join-type join-string]
-  (fn [current-string sql-dictionary table-name]
-    (str current-string
-         (if-let [joins (get sql-dictionary join-type)]
-           (let [join-formater #(format " %s %s ON %s.id=%s.%s" join-string %1 %1 table-name %2)
-                 map-function (if (map? joins)
-                                #(map symbol %)
-                                #(list (symbol %)
-                                       (symbol (str "id_" (string/lower-case (symbol %))))))]
-             (string/join "" (map #(apply join-formater (map-function %)) joins))) ""))))
+           (if-let [join-function (get-function-by-join-type table-name joins)]
+             (if (seqable? joins)
+               (str join-string (join-function table-name joins))
+               (reduce str (map #(str join-string (join-function table-name %1)) joins))))))))
 
 
+(let [t "USER"
+      j :CREDENTAIL
+      f (get-function-by-join-type j)]
+  (f t j))
 
-(let [join ["adsf" "dfa"]]
-  (cond
-    (keyword? join) join-keyword-string
-    (string? join) join-string-string
-    ;;"text ON text.id...."
-    (map? join) (if-let [value-of-key (second (first join))]
-                  (when (keyword? value-of-key) ;; "{:REK :id_rek}"
-                    join-map-keyword-string))
-    (vector? join) (if-let [first-value (first join)]
-                     (cond (keyword? first-value) join-vector-keyword-string
-                           ;; "[:SUKA :BLIAT]"
-                           (string? first-value) join-vector-string-string
-                           (map? first-value) join-vector-map-string))))
+(let [t "USER"
+      j "SUKA"
+      f (get-function-by-join-type j)]
+  (f t j))
+
+(let [t "USER"
+      j {:CREDENTIAL :id_credential
+         :META :id_metadata}
+      f (get-function-by-join-type j)]
+  (map #(f t %1) j))
+
+(let [t "USER"
+      j [:CREDENTIAL :OtherTable]
+      f (get-function-by-join-type j)]
+  (map #(f t %1) j))
+
+(let [t "USER"
+      j {:CREDENTIAL :OtherTable.id_curwa}
+      f (get-function-by-join-type j)]
+  (map #(f t %1) j))
+
+
+(defn get-function-by-join-type [join]
+ (cond
+   (keyword? join) join-keyword-string
+   (string? join) join-string-string
+   ;;"text ON text.id...."
+   (map? join) (if-let [value-of-key (second (first join))]
+                 (when (keyword? value-of-key)
+                   (if (and (some #(= \. %1) (str value-of-key))
+                            (some #(= \. %1) (str (first (first join)))))
+                     join-dot-map-string
+                     join-map-keyword-string)))
+   (vector? join) (if-let [first-value (first join)]
+                    (cond (keyword? first-value) join-vector-keyword-string
+                          ;; "[:SUKA :BLIAT]"
+                          (string? first-value) join-vector-string-string))))
+
 
 (defn join-keyword-string [main-table joining-table]
   (let [[table join-column] (list (symbol joining-table)
                                   (symbol (str "id_" (string/lower-case (symbol joining-table)))))]
     (format "%s ON %s.id=%s.%s" table table main-table join-column)))
 
-(defn join-string-string [main-table on-join-construction]
-  (on-join-construction))
+(defn join-string-string [main-table joining-table]
+  (let [[table join-column] (list joining-table
+                                  (str "id_" (string/lower-case joining-table)))]
+    (format "%s ON %s.id=%s.%s" table table main-table join-column)))
 
 (defn join-map-keyword-string [main-table [k v]]
   (let [[table join-column] (list (symbol k) (symbol v))]
@@ -117,9 +147,9 @@
     (format "%s ON %s.id=%s.%s" table table main-table join-column)))
 
 (defn join-vector-string-string [main-table on-join-construction]
-  (on-join-construction))
+  on-join-construction)
 
-(defn join-vector-map-string [main-table [k v]]
+(defn join-dot-map-string [main-table [k v]]
   (if-let [[[t1 id1]
             [t2 id2]] (and (some #(= \. %) (str k))
                            (some #(= \. %) (str v))
@@ -128,8 +158,6 @@
     (format "%s ON %s=%s" t1 (str (symbol k)) (str(symbol v)))))
 
 
-(let [[[a b]] (seq {:a :b})]
-  (println a b))
 
 (defsqljoinrule inner-join-string)
 (defsqljoinrule left-join-string)

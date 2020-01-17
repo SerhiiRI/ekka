@@ -9,6 +9,7 @@
 (def ^:dynamic *accepted-select-rules* [:column :inner-join :right-join :left-join :outer-left-join :outer-right-join :where])
 (def ^:dynamic *accepted-select-where-rules* ['in 'less '> '< ])
 (def ^:dynamic *accepted-update-rules* [])
+(def ^:dynamic *where-border* false)
 
 (defn pair-where-pattern
   ([key value table] (str (symbol table) "." (pair-where-pattern key value)))
@@ -64,16 +65,6 @@
                                  (string/split (str (symbol v)) #"\.")))]
     (format "%s ON %s=%s" t1 (str (symbol k)) (str(symbol v)))))
 
-(defn join-rule-string [join-type join-string]
-  (fn [current-string sql-dictionary table-name]
-    (str current-string
-         (if-let [joins (get sql-dictionary join-type)]
-           (if-let [join-function (get-function-by-join-type joins)]
-             (if (and (seqable? joins) (not (string? joins)))
-               (str " " (string/join " " (map #(str join-string " " (join-function table-name %1)) joins)))
-               (str " " join-string " " (join-function table-name joins))))))))
-
-
 (defn get-function-by-join-type [join]
  (cond
    (keyword? join) join-keyword-string
@@ -89,6 +80,15 @@
                     (cond (keyword? first-value) join-vector-keyword-string
                           ;; "[:SUKA :BLIAT]"
                           (string? first-value) join-vector-string-string))))
+
+(defn join-rule-string [join-type join-string]
+  (fn [current-string sql-dictionary table-name]
+    (str current-string
+         (if-let [joins (get sql-dictionary join-type)]
+           (if-let [join-function (get-function-by-join-type joins)]
+             (if (and (seqable? joins) (not (string? joins)))
+               (str " " (string/join " " (map #(str join-string " " (join-function table-name %1)) joins)))
+               (str " " join-string " " (join-function table-name joins))))))))
 
 ;;; column string constructor 
 (defn column-string [current-string sql-dictionary table-name]
@@ -115,38 +115,76 @@
 (defsqljoinrule outer-right-join-string)
 (defsqljoinrule outer-left-join-string)
 
-;; (let [t "USER"
-;;       j :CREDENTAIL
-;;       f (get-function-by-join-type j)]
-;;   (f t j))
+(defn create-rule-pipeline [keys]
+  (let [key-in? (fn [k col]
+                  (when (some #(= k %) col)
+                    (symbol (str (symbol k) "-string"))))]
+    (reduce #(if-let [k (key-in? %2 keys)] (conj %1 k) %1) [] *accepted-select-rules*)))
 
-;; (let [t "USER"
-;;       j "SUKA"
-;;       f (get-function-by-join-type j)]
-;;   (f t j))
 
-;; (let [t "USER"
-;;       j {:CREDENTIAL :id_credential
-;;          :META :id_metadata}
-;;       f (get-function-by-join-type j)]
-;;   (map #(f t %1) j))
+(defmacro select [table-name & {:as args}]
+  (let [table-name-symb (gensym 'table-name)
+        dictionary-symb (gensym 'args)
+        list-of-rules (create-rule-pipeline (keys args))]
+    `(let [~table-name-symb (symbol ~table-name)
+           ~dictionary-symb ~args]
+       (-> "SELECT"
+           ~@(for [F list-of-rules]
+             `(~F ~dictionary-symb ~table-name))))))
 
-;; (let [t "USER"
-;;       j [:CREDENTIAL :OtherTable]
-;;       f (get-function-by-join-type j)]
-;;   (map #(f t %1) j))
+(select :user_table
+        :left-join {:METADATA :id_metadata} 
+        :inner-join {:CREDENTIAL :id_credential}
+        :column [:name :dla_mamusi :CREDENTAIL.login]
+        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+                :CREDENTAIL.password "Aleksandr_Bog69"
+                :name "Aleksandr"
+                :dla_mamusi "Olek"
+                :METADATA.merried false})
 
-;; (let [t "USER"
-;;       j {:CREDENTIAL.id_usk :OtherTable.id_curwa}
-;;       f (get-function-by-join-type j)]
-;;   (map #(f t %1) j))
 
-;; (let [t "USER"
-;;       j ["user ON user.id_user"
-;;          "suka ON suka.is=user.id"]
-;;       f (get-function-by-join-type j)]
-;;   (map #(f t %1) j))
+(select :user_table)
 
+
+(select :user_table
+        :left-join {:METADATA :id_metadata} 
+        :inner-join {:CREDENTIAL :id_credential}
+        :column [:name :dla_mamusi :CREDENTAIL.login]
+        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+                :CREDENTAIL.password "Aleksandr_Bog69"
+                :name "Aleksandr"
+                :dla_mamusi "Olek"
+                :METADATA.merried false})
+
+(let [a {:left-join {:METADATA :id_metadata} 
+        :inner-join {:CREDENTIAL :id_credential}
+        :column [:name :dla_mamusi :CREDENTAIL.login]
+        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+                :CREDENTAIL.password "Aleksandr_Bog69"
+                :name "Aleksandr"
+                :dla_mamusi "Olek"
+                :METADATA.merried false}}]
+  (keys a)
+  ;; (create-rule-pipeline (keys a))
+  )
+;; => (:left-join :inner-join :column :where)
+(create-rule-pipeline '(:left-join :inner-join :column :where))
+(create-rule-pipeline  [:left-join :inner-join :column :where])
+
+
+
+(select :user-table
+        :inner-join {:CREDENTIAL :is_user_metadata :METADATA :id_user_metadata}
+        :right-join {:A1.id_self :user.id_user_a1 :B1.id_self :USER.id_user_b2}
+        :left-join ["suka ON suka.id=user.id_suka" "dupa ON dupa.id=er.id_dupara"]
+        :outer-left-join [:suka :bliat]
+        :outer-right-join :credential
+        :column [:name :dla_mamusi :CREDENTAIL.login]
+        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+                :CREDENTAIL.password "Aleksandr_Bog69"
+                :name "Aleksandr"
+                :dla_mamusi "Olek"
+                :METADATA.merried false})
 
 
 
@@ -252,131 +290,98 @@
 
 
 {:where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                       :CREDENTAIL.password "Aleksandr_Bog69"
-                       :name "Aleksandr"
-                       :dla_mamusi "Olek"
-                       :METADATA.merried false}
-               :column [:name :dla_mamusi :CREDENTAIL.login]
-               :inner-join {:CREDENTIAL :id_credential}
-               :left-join {:METADATA :id_metadata}}
+         :CREDENTAIL.password "Aleksandr_Bog69"
+         :name "Aleksandr"
+         :dla_mamusi "Olek"
+         :METADATA.merried false}
+ :column [:name :dla_mamusi :CREDENTAIL.login]
+ :inner-join {:CREDENTIAL :id_credential}
+ :left-join {:METADATA :id_metadata}}
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+:where (and (= credential.login 1)
+            (not (in 1)))
 
-(defn create-rule-pipeline [keys]
-  (let [key-in? (fn [k col]
-                  (when (some #(= k %) col)
-                    (symbol (str (symbol k) "-string"))))]
-    (reduce #(if-let [k (key-in? %2 keys)] (conj %1 k) %1) [] *accepted-select-rules*)))
+(defmacro and-ww
+  {:added "1.0"}
+  ([] true)
+  ([x] x)
+  ([x & next]
+   `(let [and# ~x]
+      (if and# (and ~@next) and#))))
 
-(create-rule-pipeline [:where :column])
+(defmacro or-ww
+  {:added "1.0"}
+  ([] true)
+  ([x] x)
+  ([x & next]
+   `(let [or# ~x]
+      (if or# or# (or ~@next)))))
 
+(defn into-border [some-string]
+  (if *where-border* 
+    (format "(%s)" some-string)
+    some-string))
 
-(reduce key-to-modificator [] (keys {:where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                                             :CREDENTAIL.password "Aleksandr_Bog69"
-                                             :name "Aleksandr"
-                                             :dla_mamusi "Olek"
-                                             :METADATA.merried false}
-                                     :column [:name :dla_mamusi :CREDENTAIL.login]
-                                     :inner-join {:CREDENTIAL :id_credential}
-                                     :left-join {:METADATA :id_metadata}}))
+(let [where-border true]
+  (into-border "blait"))
 
-(defn key-to-modificator [acc key]
-  (if-let [f (condp = key
-               :column     column-string
-               :where      where-string
-               :inner-join inner-join-string
-               :left-join  left-join-string
-               :right-join right-join-string)]
-    (conj acc f)))
+(into-border)
 
-(keys {:where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-               :CREDENTAIL.password "Aleksandr_Bog69"
-               :name "Aleksandr"
-               :dla_mamusi "Olek"
-               :METADATA.merried false}
-       :column [:name :dla_mamusi :CREDENTAIL.login]
-       :inner-join {:CREDENTIAL :id_credential}
-       :left-join {:METADATA :id_metadata}})
+(defmacro  in [])
+(defmacro between [])
+(defmacro like [])
 
+(defmacro and-processor [& args]
+  `(into-border (string/join " AND " (binding [*where-border* true]
+                                       [~@args]))))
 
+(defmacro or-processor [& args]
+  `(into-border (string/join " OR " (binding [*where-border* true]
+                                       [~@args]))))
 
-(conj [1 4 3] 1)
-(key-to-modificator :where)
+(defmacro between-processor)
 
-(let [kluczy [:where :column :inner-join :left-join]]
-  (if (some #(= :column %) kluczy )
-    (conj [] column-string)
-    []))
+(or-processor "cuska" 123
+              (and-processor "dupa"
+                             (or-processor (= 1 2) 2 4) 2))
 
-(get [:where :column :inner-join :left-join] :column)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defmacro select [table-name & {:as args}]
-  (let [table-name-symb (gensym 'table-name)
-        dictionary-symb (gensym 'args)
-        list-of-rules (create-rule-pipeline (keys args))]
-    `(let [~table-name-symb (symbol ~table-name)
-           ~dictionary-symb ~args]
-       (-> "SELECT"
-           ~@(for [F list-of-rules]
-             `(~F ~dictionary-symb ~table-name))))))
-
-(select :user_table
-        :left-join {:METADATA :id_metadata} 
-        :inner-join {:CREDENTIAL :id_credential}
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false})
+'(and (in 1 [2 3 4 5])
+      (or (between :col (1 2))
+          (like :col "blit")))
 
 
-(select :user_table)
+;; < <= <> >= >
+;; WHERE City IN ('Paris','London');
+;; WHERE Price BETWEEN 50 AND 60;
 
+;; (let [t "USER"
+;;       j :CREDENTAIL
+;;       f (get-function-by-join-type j)]
+;;   (f t j))
 
-(select :user_table
-        :left-join {:METADATA :id_metadata} 
-        :inner-join {:CREDENTIAL :id_credential}
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false})
+;; (let [t "USER"
+;;       j "SUKA"
+;;       f (get-function-by-join-type j)]
+;;   (f t j))
 
-(let [a {:left-join {:METADATA :id_metadata} 
-        :inner-join {:CREDENTIAL :id_credential}
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false}}]
-  (keys a)
-  ;; (create-rule-pipeline (keys a))
-  )
-;; => (:left-join :inner-join :column :where)
-(create-rule-pipeline '(:left-join :inner-join :column :where))
-(create-rule-pipeline  [:left-join :inner-join :column :where])
+;; (let [t "USER"
+;;       j {:CREDENTIAL :id_credential
+;;          :META :id_metadata}
+;;       f (get-function-by-join-type j)]
+;;   (map #(f t %1) j))
 
+;; (let [t "USER"
+;;       j [:CREDENTIAL :OtherTable]
+;;       f (get-function-by-join-type j)]
+;;   (map #(f t %1) j))
 
+;; (let [t "USER"
+;;       j {:CREDENTIAL.id_usk :OtherTable.id_curwa}
+;;       f (get-function-by-join-type j)]
+;;   (map #(f t %1) j))
 
-(select :user-table
-        :inner-join {:CREDENTIAL :is_user_metadata :METADATA :id_user_metadata}
-        :right-join {:A1.id_self :user.id_user_a1 :B1.id_self :USER.id_user_b2}
-        :left-join ["suka ON suka.id=user.id_suka" "dupa ON dupa.id=er.id_dupara"]
-        :outer-left-join [:suka :bliat]
-        :outer-right-join :credential
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false})
-
-
+;; (let [t "USER"
+;;       j ["user ON user.id_user"
+;;          "suka ON suka.is=user.id"]
+;;       f (get-function-by-join-type j)]
+;;   (map #(f t %1) j))

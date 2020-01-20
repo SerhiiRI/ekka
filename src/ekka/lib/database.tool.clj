@@ -298,113 +298,63 @@
 :where (and (= credential.login 1)
             (not (in 1)))
 
-(defmacro and-ww
-  {:added "1.0"}
-  ([] true)
-  ([x] x)
-  ([x & next]
-   `(let [and# ~x]
-      (if and# (and ~@next) and#))))
-
-(defmacro or-ww
-  {:added "1.0"}
-  ([] true)
-  ([x] x)
-  ([x & next]
-   `(let [or# ~x]
-      (if or# or# (or ~@next)))))
 
 (defn into-border [some-string]
   (if *where-border* 
     (format "(%s)" some-string)
     some-string))
 
-(defmacro in [])
-(defmacro between [col a1 a2])
-(defmacro like [])
-(defmacro or-ww
-  {:added "1.0"}
-  ([] true)
-  ([x] x)
-  ([x & next]
-   `(let [or# ~x]
-      (if or# or# (or ~@next)))))
 
 (defmacro and-processor [& args]
   `(into-border (string/join " AND " (binding [*where-border* true]
                                        [~@args]))))
+(defmacro and-processor [& args]
+  (let [v (vec (for [x (vec args)]
+                 `(binding [*where-border* true]
+                    (where-procedure-parser ~x))))]
+    `(into-border (string/join " AND " ~v))))
 
 (defmacro or-processor [& args]
-  `(into-border (string/join " OR " (binding [*where-border* true]
-                                      (do (println '~args)
-                                          (map where-procedure-parser '~args ))))))
+  (let [v (vec (for [x (vec args)]
+                 `(binding [*where-border* true]
+                    (where-procedure-parser ~x))))]
+    `(into-border (string/join " OR " ~v))))
+
+(or-processor (= 1 2))
+
+(where-procedure-parser (or (= 1 2) (> 2 (- 3 3))))
+(where-procedure-parser (or
+                         (= :suka 1)
+                         (= :some "bliat")
+                         (and (= :suka 2)
+                              (= :some (= 1 "fuck"))
+                              (between :one 1 2))))
+(or-processor (= 1 2) (- 2 3))
+(or-processor 1 2)
+(where-procedure-parser [1 2 3 4])
 
 (println '(1 2))
 (map where-procedure-parser '((= 1 2) 1 2))
+
+(where-procedure-parser (between :user 2 1))
 (where-procedure-parser (between :user 2 1))
 (where-procedure-parser (like :suka "blait"))
+(where-procedure-parser (< :suka "blait"))
 (where-procedure-parser 1)
+(where-procedure-parser (+ 1 2))
 (where-procedure-parser 2)
+(where-procedure-parser (or
+                         (= :f1 1)
+                         (>= :f1 "bliat")
+                         (and (> :f2 2)
+                              (= :f2 "fuck")
+                              (between :f1 1 (+ 10 1000))
+                              (or (= :suka "one")
+                                  (in :one [1 2 3 (+ 1 2)])))))
 
-
-(or-processor )
-(map #(-parsing %) '((= 1 2) 1 2))
-
-(map #(where-construction-parsing %1) (vector (= 1 2) 12))
-
-(where-construction-parsing
- (or "cuska" 123 1421
-     (and "dupa"
-          (or (= 1 2) 2 4) 2)))
-
-(where-construction-parsing
- (or "cuska" 123 1421))
-
-(defmacro where-construction-parsing [where-clause]
-  (if (not (seqable? where-clause))
-    `(where-procedure-pattern ~where-clause)
-    (let [F (first where-clause)
-          R (rest where-clause)]
-      (println F " _[args]> " R)
-      `(where-procedure-parser ~F ~@R))))
-
-(or-processor "cuska" 123 1421
-              (and-processor "dupa"
-                             (or-processor (= 1 2) 2 4) 2))
-
-(where-procedure-parser (or (= :suka 2) "bliat"))
-(or-processor (= :suka 2) "bliat")
 
 (defmacro where-procedure-parser [where-clause]
-  (if ((not (seqable? where-clause)))
-    (cond
-      (symbol? where-clause) (format "%s" (str where-clause))
-      (string? where-clause) (format "\"%s\"" where-clause)
-      (keyword? where-clause) (str (symbol where-clause))
-      ;; (seqable? where-clause) (str "(" (string/join ", " (map #(where-procedure-parser %1) (eval where-clause))) ")")
-      :else (str where-clause))
-    (let [function (first where-clause)
-          args (rest where-clause)]
-      (condp = function
-        'or `(or-processor ~@args)
-        'and `(and-processor ~@args)
-        '> `(define-operator ~function ~@args)
-        '< `(define-operator ~function ~@args)
-        '= `(define-operator ~function ~@args)
-        '>= `(define-operator ~function ~@args)
-        '<= `(define-operator ~function ~@args)
-        '<> `(define-operator ~function ~@args)
-        '!= `(define-operator '<> ~@args)
-        'between `(between-procedure ~@args)
-        'like `(define-operator ~(symbol 'LIKE) ~@args)
-        'in `(define-operator ~(symbol 'IN) ~@args)
-        'and `(define-operator ~(symbol 'AND) ~@args)
-        (if (and (symbol? function) (resolve (fn? function)))
-          `(eval ~where-clause)
-          `(str "(" (string/join ", " (map #(where-procedure-parser %1) ~where-clause)) ")"))))))
-
-(defmacro where-procedure-parser [where-clause]
-  (println (keyword? where-clause))
+  (println where-clause)
   (cond
     (symbol? where-clause) `(format "%s" (str '~where-clause))
     (string? where-clause) `(format "\"%s\"" ~where-clause)
@@ -413,58 +363,73 @@
                               (condp = function
                                 'or `(or-processor ~@args)
                                 'and `(and-processor ~@args)
-                                '> `(define-operator ~function ~@args)
-                                '< `(define-operator ~function ~@args)
-                                '= `(define-operator ~function ~@args)
-                                '>= `(define-operator ~function ~@args)
-                                '<= `(define-operator ~function ~@args)
-                                '<> `(define-operator ~function ~@args)
+                                '> `(define-operator '~function ~@args)
+                                '< `(define-operator '~function ~@args)
+                                '= `(define-operator '~function ~@args)
+                                '>= `(define-operator '~function ~@args)
+                                '<= `(define-operator '~function ~@args)
+                                '<> `(define-operator '~function ~@args)
                                 '!= `(define-operator '<> ~@args)
                                 'between `(between-procedure ~@args)
-                                'like `(define-operator ~(symbol 'LIKE) ~@args)
-                                'in `(define-operator ~(symbol 'IN) ~@args)
-                                'and `(define-operator ~(symbol 'AND) ~@args)
-                                (if (and (symbol? function) (resolve (fn? function)))
-                                  `(eval ~where-clause)
-                                  `(str "(" (string/join ", " (map #(where-procedure-parser %1) ~where-clause)) ")"))))
-    :else (do (println "fuck!!!")
-           (str where-clause))))
-(where-procedure-parser (or (between :user "suka" (= 2 3)) (= 4 31)))
+                                'like `(define-operator '~(symbol 'LIKE) ~@args)
+                                'in `(define-operator '~(symbol 'LIKE) ~@args)
+                                'and `(define-operator '~(symbol 'LIKE) ~@args)
+                                (if (and (symbol? function) (resolve function))
+                                  (let [result (eval where-clause)]
+                                    `(where-procedure-parser ~result))
+                                  (let [element-primitives (vec (for [x where-clause]
+                                                                  `(where-procedure-parser ~x)))]
+                                    `(str "(" (string/join ", " ~element-primitives) ")")))))
+    :else (str where-clause)))
+
+(if (resolve ') :true :false)
+(where-procedure-parser [1 2 3])
+(where-procedure-parser (in :skur [1 2 3]))
+(where-procedure-parser (or (between :user "suka" (+ 2 3)) (= 4 31)))
 (where-procedure-parser (or 1 2))
 
 
+;; (defmacro where-procedure-parser [function & args]
+;;   (let [and 1
+;;         ;; (eval '(define-operator and ~@(rest args))) 
+;;         ]
+;;     ;; (println " blait -> " and)
+;;     (condp = function
+;;       'or `(or-processor ~@args)
+;;       'and `(and-processor ~@args)
+;;       '> `(define-operator ~function ~@args)
+;;       '< `(define-operator ~function ~@args)
+;;       '= `(define-operator ~function ~@args)
+;;       '>= `(define-operator ~function ~@args)
+;;       '<= `(define-operator ~function ~@args)
+;;       '<> `(define-operator ~function ~@args)
+;;       '!= `(define-operator '<> ~@args)
+;;       'between `(between-procedure ~@args)
+;;       'like `(define-operator ~(symbol 'LIKE) ~@args)
+;;       'in `(define-operator ~(symbol 'IN) ~@args)
+;;       'and `(define-operator ~(symbol 'AND) ~@args))))
 
-(defmacro where-procedure-parser [function & args]
-  (let [and 1
-        ;; (eval '(define-operator and ~@(rest args))) 
-        ]
-    ;; (println " blait -> " and)
-    (condp = function
-      'or `(or-processor ~@args)
-      'and `(and-processor ~@args)
-      '> `(define-operator ~function ~@args)
-      '< `(define-operator ~function ~@args)
-      '= `(define-operator ~function ~@args)
-      '>= `(define-operator ~function ~@args)
-      '<= `(define-operator ~function ~@args)
-      '<> `(define-operator ~function ~@args)
-      '!= `(define-operator '<> ~@args)
-      'between `(between-procedure ~@args)
-      'like `(define-operator ~(symbol 'LIKE) ~@args)
-      'in `(define-operator ~(symbol 'IN) ~@args)
-      'and `(define-operator ~(symbol 'AND) ~@args))))
 
-
+(defn between-procedure [field v1 v2]
+  (format "%s BETWEEN %s AND %s"
+          (eval `(where-procedure-parser ~field))
+          (eval `(where-procedure-parser ~v1))
+          (eval `(where-procedure-parser ~v2))))
 
 (defn between-procedure [field v1 v2]
   (format "%s BETWEEN %s AND %s" (where-procedure-pattern field) (where-procedure-pattern v1) (where-procedure-pattern v2)))
 
-(where-procedure-parser between :bqliat 1 (+ 1 2))
-(defmacro define-operator [operator field-1 field-2]
-  `(string/join " " [~(where-procedure-parser field-1) '~operator ~(where-procedure-parser field-2)]))
+(defn between-procedure [field v1 v2]
+  `(format "%s BETWEEN %s AND %s" (where-procedure-parser ~field) (where-procedure-parser ~v1) (where-procedure-parser ~v2)))
 
-(defmacro define-operator [operator field-1 field-2]
-  `(string/join " " [~(where-procedure-pattern field-1) '~operator ~(where-procedure-pattern field-2)]))
+
+(where-procedure-parser (> 1 2))
+(where-procedure-parser (between :bqliat 1 (= 1 2)))
+(define-operator '> "ablia" "kuas")
+
+(defn define-operator [operator field-1 field-2]
+  (string/join " " [(eval `(where-procedure-parser ~field-1)) operator (eval `(where-procedure-parser ~field-2))]))
+
 
 (define-operator IN :bliat "fdsa")
 (define-operator IN :suka [2 3 4])

@@ -66,20 +66,19 @@
     (format "%s ON %s=%s" t1 (str (symbol k)) (str(symbol v)))))
 
 (defn get-function-by-join-type [join]
- (cond
-   (keyword? join) join-keyword-string
-   (string? join) join-string-string
-   ;;"text ON text.id...."
-   (map? join) (if-let [value-of-key (second (first join))]
-                 (when (keyword? value-of-key)
-                   (if (and (some #(= \. %1) (str value-of-key))
-                            (some #(= \. %1) (str (first (first join)))))
-                     join-dot-map-string
-                     join-map-keyword-string)))
-   (vector? join) (if-let [first-value (first join)]
-                    (cond (keyword? first-value) join-vector-keyword-string
-                          ;; "[:SUKA :BLIAT]"
-                          (string? first-value) join-vector-string-string))))
+ (cond (keyword? join) join-keyword-string
+       (string? join) join-string-string
+       ;;"text ON text.id...."
+       (map? join) (if-let [value-of-key (second (first join))]
+                     (when (keyword? value-of-key)
+                       (if (and (some #(= \. %1) (str value-of-key))
+                                (some #(= \. %1) (str (first (first join)))))
+                         join-dot-map-string
+                         join-map-keyword-string)))
+       (vector? join) (if-let [first-value (first join)]
+                        (cond (keyword? first-value) join-vector-keyword-string
+                              ;; "[:SUKA :BLIAT]"
+                              (string? first-value) join-vector-string-string))))
 
 (defn join-rule-string [join-type join-string]
   (fn [current-string sql-dictionary table-name]
@@ -108,6 +107,62 @@
                                                      (pair-where-pattern k v)
                                                      (pair-where-pattern k v table-name)))
                                                 (seq key-where))))))))
+
+(defmacro where-string [current-string sql-dictionary table-name]
+  (str current-string
+       (eval 
+        (if-let [key-where (get sql-dictionary :where)]
+          (cond (string? key-where) `(str " WHERE %" ~key-where)
+                (map? key-where) (if (empty? (get sql-dictionary :join-on))
+                                   `(str " WHERE " (string/join " AND " (map #(apply pair-where-pattern %) (seq ~key-where))))
+                                   `(str " WHERE " (string/join " AND " (map #(let [[k v] %]
+                                                                                (if (string/includes? k ".")
+                                                                                  (pair-where-pattern k v)
+                                                                                  (pair-where-pattern k v ~table-name)))
+                                                                             (seq ~key-where)))))
+                (seqable? key-where) `(str " WHERE " (where-procedure-parser ~key-where)))))))
+
+(where-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+                                            :suka 2
+                                            :METADATA.merried true}} "user")
+
+(where-string "SELECT * FROM user"
+              {:where (or (= :f1 1)
+                          (>= :f1 "bliat")
+                          (and (> :f2 2)
+                               (= :f2 "fuck")
+                               (between :f1 1 (+ 10 1000))
+                               (or (= :suka "one")
+                                   (in :one [1 2 3 (+ 1 2)]))))} "user")
+
+(select :user-table
+        :inner-join {:CREDENTIAL :is_user_metadata :METADATA :id_user_metadata}
+        :right-join {:A1.id_self :user.id_user_a1 :B1.id_self :USER.id_user_b2}
+        :left-join ["suka ON suka.id=user.id_suka" "dupa ON dupa.id=er.id_dupara"]
+        :outer-left-join [:suka :bliat]
+        :outer-right-join :credential
+        :column [:name :dla_mamusi :CREDENTAIL.login]
+        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+                :CREDENTAIL.password "Aleksandr_Bog69"
+                :name "Aleksandr"
+                :dla_mamusi "Olek"
+                :METADATA.merried false})
+
+(select :user-table
+        :inner-join {:CREDENTIAL :is_user_metadata :METADATA :id_user_metadata}
+        :right-join {:A1.id_self :user.id_user_a1 :B1.id_self :USER.id_user_b2}
+        :left-join ["suka ON suka.id=user.id_suka" "dupa ON dupa.id=er.id_dupara"]
+        :outer-left-join [:suka :bliat]
+        :outer-right-join :credential
+        :column [:name :dla_mamusi :CREDENTAIL.login]
+        :where (or (= :f1 1)
+                   (>= :f1 "bliat")
+                   (and (> :f2 2)
+                        (= :f2 "fuck")
+                        (between :f1 1 (+ 10 1000))
+                        (or (= :suka "one")
+                            (in :one [1 2 3 (+ 1 2)])))))
+
 (defsqljoinrule inner-join-string)
 (defsqljoinrule left-join-string)
 (defsqljoinrule right-join-string)
@@ -128,182 +183,166 @@
         list-of-rules (create-rule-pipeline (keys args))]
     `(let [~table-name-symb (symbol ~table-name)
            ~dictionary-symb ~args]
-       (-> "SELECT"
-           ~@(for [F list-of-rules]
-             `(~F ~dictionary-symb ~table-name))))))
+       (println "---> " ~dictionary-symb)
+       (eval (-> "SELECT"
+            ~@(for [F list-of-rules]
+                `(~F ~dictionary-symb ~table-name)))))))
 
-(select :user_table
-        :left-join {:METADATA :id_metadata} 
-        :inner-join {:CREDENTIAL :id_credential}
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false})
+(defmacro select [table-name & {:as args}]
+  (let [table-name-symb (gensym 'table-name)
+        list-of-rules (create-rule-pipeline (keys args))]
+    `(let [~table-name-symb (symbol ~table-name)]
+       (eval (-> "SELECT"
+            ~@(for [F list-of-rules]
+                `(~F ~args ~table-name)))))))
 
-
-(select :user_table)
-
-
-(select :user_table
-        :left-join {:METADATA :id_metadata} 
-        :inner-join {:CREDENTIAL :id_credential}
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false})
-
-(let [a {:left-join {:METADATA :id_metadata} 
-        :inner-join {:CREDENTIAL :id_credential}
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false}}]
-  (keys a))
+;; (select :user_table
+;;         :left-join {:METADATA :id_metadata} 
+;;         :inner-join {:CREDENTIAL :id_credential}
+;;         :column [:name :dla_mamusi :CREDENTAIL.login]
+;;         :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;                 :CREDENTAIL.password "Aleksandr_Bog69"
+;;                 :name "Aleksandr"
+;;                 :dla_mamusi "Olek"
+;;                 :METADATA.merried false})
 
 
+;; (select :user_table)
 
 
+;; (select :user_table
+;;         :left-join {:METADATA :id_metadata} 
+;;         :inner-join {:CREDENTIAL :id_credential}
+;;         :column [:name :dla_mamusi :CREDENTAIL.login]
+;;         :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;                 :CREDENTAIL.password "Aleksandr_Bog69"
+;;                 :name "Aleksandr"
+;;                 :dla_mamusi "Olek"
+;;                 :METADATA.merried false})
 
-(select :user-table
-        :inner-join {:CREDENTIAL :is_user_metadata :METADATA :id_user_metadata}
-        :right-join {:A1.id_self :user.id_user_a1 :B1.id_self :USER.id_user_b2}
-        :left-join ["suka ON suka.id=user.id_suka" "dupa ON dupa.id=er.id_dupara"]
-        :outer-left-join [:suka :bliat]
-        :outer-right-join :credential
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false})
+;; (let [a {:left-join {:METADATA :id_metadata} 
+;;         :inner-join {:CREDENTIAL :id_credential}
+;;         :column [:name :dla_mamusi :CREDENTAIL.login]
+;;         :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;                 :CREDENTAIL.password "Aleksandr_Bog69"
+;;                 :name "Aleksandr"
+;;                 :dla_mamusi "Olek"
+;;                 :METADATA.merried false}}]
+;;   (keys a))
 
 
-
-
-(outer-left-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                 :suka 2
-                                                 :METADATA.merried true}
-                                         :column [:bliat :suka]
-                                         :outer-left-join {:CREDENTIAL :is_user_metadata
-                                                      :METADATA :id_user_metadata}} "user")
+;; (outer-left-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                  :suka 2
+;;                                                  :METADATA.merried true}
+;;                                          :column [:bliat :suka]
+;;                                          :outer-left-join {:CREDENTIAL :is_user_metadata
+;;                                                       :METADATA :id_user_metadata}} "user")
 
 
 
 
-(inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                 :suka 2
-                                                 :METADATA.merried true}
-                                         :column [:bliat :suka]
-                                         :inner-join {:CREDENTIAL.id_self :user.id_user_credential
-                                                      :METADATA.id_self :USER.id_user_metadata}} "user")
+;; (inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                  :suka 2
+;;                                                  :METADATA.merried true}
+;;                                          :column [:bliat :suka]
+;;                                          :inner-join {:CREDENTIAL.id_self :user.id_user_credential
+;;                                                       :METADATA.id_self :USER.id_user_metadata}} "user")
 
-(inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                 :suka 2
-                                                 :METADATA.merried true}
-                                         :column [:bliat :suka]
-                                         :inner-join [:CREDENTIAL :METADATA]} "user")
+;; (inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                  :suka 2
+;;                                                  :METADATA.merried true}
+;;                                          :column [:bliat :suka]
+;;                                          :inner-join [:CREDENTIAL :METADATA]} "user")
 
-(inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                 :suka 2
-                                                 :METADATA.merried true}
-                                         :column [:bliat :suka]
-                                         :inner-join :suka} "user")
+;; (inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                  :suka 2
+;;                                                  :METADATA.merried true}
+;;                                          :column [:bliat :suka]
+;;                                          :inner-join :suka} "user")
 
-(inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                 :suka 2
-                                                 :METADATA.merried true}
-                                         :column [:bliat :suka]
-                                         :inner-join "suka"} "user")
+;; (inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                  :suka 2
+;;                                                  :METADATA.merried true}
+;;                                          :column [:bliat :suka]
+;;                                          :inner-join "suka"} "user")
 
-(inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                 :suka 2
-                                                 :METADATA.merried true}
-                                         :column [:bliat :suka]
-                                         :inner-join ["suka ON suka.id=user.id_suka"
-                                                      "dupa ON dupa.id=user.id_dupara"]} "user")
+;; (inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                  :suka 2
+;;                                                  :METADATA.merried true}
+;;                                          :column [:bliat :suka]
+;;                                          :inner-join ["suka ON suka.id=user.id_suka"
+;;                                                       "dupa ON dupa.id=user.id_dupara"]} "user")
 
-(inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                 :suka 2
-                                                 :METADATA.merried true}
-                                         :column [:bliat :suka]
-                                         :inner-join {:CREDENTIAL :id_credential
-                                                      :METADATA :id_metadata}} "user")
+;; (inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                  :suka 2
+;;                                                  :METADATA.merried true}
+;;                                          :column [:bliat :suka]
+;;                                          :inner-join {:CREDENTIAL :id_credential
+;;                                                       :METADATA :id_metadata}} "user")
 
-(inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                 :suka 2
-                                                 :METADATA.merried true}
-                                         :column [:bliat :suka]
-                                         :inner-join ["INNER JOIN XXX ON user.id_columnt=XXX.id"]} "user")
+;; (inner-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                  :suka 2
+;;                                                  :METADATA.merried true}
+;;                                          :column [:bliat :suka]
+;;                                          :inner-join ["INNER JOIN XXX ON user.id_columnt=XXX.id"]} "user")
 
-(left-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                                :suka 2
-                                                :METADATA.merried true}
-                                        :column [:bliat :suka]
-                                        :left-join [:CREDENTIAL :METADATA]} "user")
+;; (left-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                                 :suka 2
+;;                                                 :METADATA.merried true}
+;;                                         :column [:bliat :suka]
+;;                                         :left-join [:CREDENTIAL :METADATA]} "user")
 
-(column-string "SELECT" {:where {:bliat "slia" :suka 2 :what? true}
-                         :column [:bliat :suka]
-                         :join-on {:CREDENTIAL :id_credential}} "user")
-
-
-(column-string "SELECT" {} "user")
+;; (column-string "SELECT" {:where {:bliat "slia" :suka 2 :what? true}
+;;                          :column [:bliat :suka]
+;;                          :join-on {:CREDENTIAL :id_credential}} "user")
 
 
-
-(where-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
-                                            :suka 2
-                                            :METADATA.merried true}
-                                    :column [:bliat :suka]
-                                    :join-on {:CREDENTIAL :id_credential
-                                              :METADATA :id_metadata}} "user")
-
-(where-string "SELECT * FROM user" {:column [ :bliat :suka]
-                                    :join-on {:CREDENTIAL :id_credential
-                                              :METADATA :id_metadata}} "user")
-
-
-(let [table-name "users"
-      dick {:where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                    :CREDENTAIL.password "Aleksandr_Bog69"
-                    :name "Aleksandr"
-                    :dla_mamusi "Olek"
-                    :METADATA.merried false}
-            :column [:name :dla_mamusi :CREDENTAIL.login]
-            :inner-join {:CREDENTIAL :id_credential}
-            :left-join {:METADATA :id_metadata}}]
-  (-> "SELECT"
-      (column-string dick table-name)
-      (inner-join-string dick table-name)
-      (left-join-string dick table-name)
-      (right-join-string dick table-name)
-      (where-string dick table-name)))
+;; (column-string "SELECT" {} "user")
 
 
 
-{:where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-         :CREDENTAIL.password "Aleksandr_Bog69"
-         :name "Aleksandr"
-         :dla_mamusi "Olek"
-         :METADATA.merried false}
- :column [:name :dla_mamusi :CREDENTAIL.login]
- :inner-join {:CREDENTIAL :id_credential}
- :left-join {:METADATA :id_metadata}}
+;; (where-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+;;                                             :suka 2
+;;                                             :METADATA.merried true}
+;;                                     :column [:bliat :suka]
+;;                                     :join-on {:CREDENTIAL :id_credential
+;;                                               :METADATA :id_metadata}} "user")
 
-:where (and (= credential.login 1)
-            (not (in 1)))
+;; (where-string "SELECT * FROM user" {:column [ :bliat :suka]
+;;                                     :join-on {:CREDENTIAL :id_credential
+;;                                               :METADATA :id_metadata}} "user")
+
+
+;; (let [table-name "users"
+;;       dick {:where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;                     :CREDENTAIL.password "Aleksandr_Bog69"
+;;                     :name "Aleksandr"
+;;                     :dla_mamusi "Olek"
+;;                     :METADATA.merried false}
+;;             :column [:name :dla_mamusi :CREDENTAIL.login]
+;;             :inner-join {:CREDENTIAL :id_credential}
+;;             :left-join {:METADATA :id_metadata}}]
+;;   (-> "SELECT"
+;;       (column-string dick table-name)
+;;       (inner-join-string dick table-name)
+;;       (left-join-string dick table-name)
+;;       (right-join-string dick table-name)
+;;       (where-string dick table-name)))
+
+;; {:where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;          :CREDENTAIL.password "Aleksandr_Bog69"
+;;          :name "Aleksandr"
+;;          :dla_mamusi "Olek"
+;;          :METADATA.merried false}
+;;  :column [:name :dla_mamusi :CREDENTAIL.login]
+;;  :inner-join {:CREDENTIAL :id_credential}
+;;  :left-join {:METADATA :id_metadata}}
 
 
 (defn into-border [some-string]
   (if *where-border* 
     (format "(%s)" some-string)
     some-string))
-
 
 (defmacro and-processor [& args]
   `(into-border (string/join " AND " (binding [*where-border* true]
@@ -320,95 +359,10 @@
                     (where-procedure-parser ~x))))]
     `(into-border (string/join " OR " ~v))))
 
-(or-processor (= 1 2))
-
-(where-procedure-parser (or (= 1 2) (> 2 (- 3 3))))
-(where-procedure-parser (or
-                         (= :suka 1)
-                         (= :some "bliat")
-                         (and (= :suka 2)
-                              (= :some (= 1 "fuck"))
-                              (between :one 1 2))))
-(or-processor (= 1 2) (- 2 3))
-(or-processor 1 2)
-(where-procedure-parser [1 2 3 4])
-
-(println '(1 2))
-(map where-procedure-parser '((= 1 2) 1 2))
-
-(where-procedure-parser (between :user 2 1))
-(where-procedure-parser (between :user 2 1))
-(where-procedure-parser (like :suka "blait"))
-(where-procedure-parser (< :suka "blait"))
-(where-procedure-parser 1)
-(where-procedure-parser (+ 1 2))
-(where-procedure-parser 2)
-(where-procedure-parser (or
-                         (= :f1 1)
-                         (>= :f1 "bliat")
-                         (and (> :f2 2)
-                              (= :f2 "fuck")
-                              (between :f1 1 (+ 10 1000))
-                              (or (= :suka "one")
-                                  (in :one [1 2 3 (+ 1 2)])))))
-
-
-(defmacro where-procedure-parser [where-clause]
-  (println where-clause)
-  (cond
-    (symbol? where-clause) `(format "%s" (str '~where-clause))
-    (string? where-clause) `(format "\"%s\"" ~where-clause)
-    (keyword? where-clause) `(str (symbol ~where-clause))
-    (seqable? where-clause) (let [function (first where-clause) args (rest where-clause)]
-                              (condp = function
-                                'or `(or-processor ~@args)
-                                'and `(and-processor ~@args)
-                                '> `(define-operator '~function ~@args)
-                                '< `(define-operator '~function ~@args)
-                                '= `(define-operator '~function ~@args)
-                                '>= `(define-operator '~function ~@args)
-                                '<= `(define-operator '~function ~@args)
-                                '<> `(define-operator '~function ~@args)
-                                '!= `(define-operator '<> ~@args)
-                                'between `(between-procedure ~@args)
-                                'like `(define-operator '~(symbol 'LIKE) ~@args)
-                                'in `(define-operator '~(symbol 'LIKE) ~@args)
-                                'and `(define-operator '~(symbol 'LIKE) ~@args)
-                                (if (and (symbol? function) (resolve function))
-                                  (let [result (eval where-clause)]
-                                    `(where-procedure-parser ~result))
-                                  (let [element-primitives (vec (for [x where-clause]
-                                                                  `(where-procedure-parser ~x)))]
-                                    `(str "(" (string/join ", " ~element-primitives) ")")))))
-    :else (str where-clause)))
-
-(if (resolve ') :true :false)
-(where-procedure-parser [1 2 3])
-(where-procedure-parser (in :skur [1 2 3]))
-(where-procedure-parser (or (between :user "suka" (+ 2 3)) (= 4 31)))
-(where-procedure-parser (or 1 2))
-
-
-;; (defmacro where-procedure-parser [function & args]
-;;   (let [and 1
-;;         ;; (eval '(define-operator and ~@(rest args))) 
-;;         ]
-;;     ;; (println " blait -> " and)
-;;     (condp = function
-;;       'or `(or-processor ~@args)
-;;       'and `(and-processor ~@args)
-;;       '> `(define-operator ~function ~@args)
-;;       '< `(define-operator ~function ~@args)
-;;       '= `(define-operator ~function ~@args)
-;;       '>= `(define-operator ~function ~@args)
-;;       '<= `(define-operator ~function ~@args)
-;;       '<> `(define-operator ~function ~@args)
-;;       '!= `(define-operator '<> ~@args)
-;;       'between `(between-procedure ~@args)
-;;       'like `(define-operator ~(symbol 'LIKE) ~@args)
-;;       'in `(define-operator ~(symbol 'IN) ~@args)
-;;       'and `(define-operator ~(symbol 'AND) ~@args))))
-
+;; (and-processor (= 1 2) (= 1 (- 2 3)))
+;; (and-processor 1 2)
+;; (or-processor (= 1 2) (= 1 (- 2 3)))
+;; (or-processor 1 2)
 
 (defn between-procedure [field v1 v2]
   (format "%s BETWEEN %s AND %s"
@@ -416,57 +370,69 @@
           (eval `(where-procedure-parser ~v1))
           (eval `(where-procedure-parser ~v2))))
 
-(defn between-procedure [field v1 v2]
-  (format "%s BETWEEN %s AND %s" (where-procedure-pattern field) (where-procedure-pattern v1) (where-procedure-pattern v2)))
-
-(defn between-procedure [field v1 v2]
-  `(format "%s BETWEEN %s AND %s" (where-procedure-parser ~field) (where-procedure-parser ~v1) (where-procedure-parser ~v2)))
-
-
-(where-procedure-parser (> 1 2))
-(where-procedure-parser (between :bqliat 1 (= 1 2)))
-(define-operator '> "ablia" "kuas")
-
 (defn define-operator [operator field-1 field-2]
-  (string/join " " [(eval `(where-procedure-parser ~field-1)) operator (eval `(where-procedure-parser ~field-2))]))
+  (string/join " " [(eval `(where-procedure-parser ~field-1))
+                    operator
+                    (eval `(where-procedure-parser ~field-2))]))
+
+(defmacro where-procedure-parser [where-clause]
+  (cond (symbol? where-clause) `(format "%s" (str '~where-clause))
+        (string? where-clause) `(format "\"%s\"" ~where-clause)
+        (keyword? where-clause) `(str (symbol ~where-clause))
+        (seqable? where-clause) (let [function (first where-clause) args (rest where-clause)]
+                                  (condp = function
+                                    'or `(or-processor ~@args)
+                                    'and `(and-processor ~@args)
+                                    '> `(define-operator '~function ~@args)
+                                    '< `(define-operator '~function ~@args)
+                                    '= `(define-operator '~function ~@args)
+                                    '>= `(define-operator '~function ~@args)
+                                    '<= `(define-operator '~function ~@args)
+                                    '<> `(define-operator '~function ~@args)
+                                    '!= `(define-operator '<> ~@args)
+                                    'between `(between-procedure ~@args)
+                                    'like `(define-operator '~(symbol 'LIKE) ~@args)
+                                    'in `(define-operator '~(symbol 'LIKE) ~@args)
+                                    'and `(define-operator '~(symbol 'LIKE) ~@args)
+                                    (if (and (symbol? function) (resolve function))
+                                      (let [result (eval where-clause)]
+                                        `(where-procedure-parser ~result))
+                                      (let [element-primitives (vec (for [x where-clause]
+                                                                      `(where-procedure-parser ~x)))]
+                                        ;; `(str "(" (string/join ", " ~element-primitives) ")")
+                                        `(binding [*where-border* true]
+                                           (into-border (string/join ", " ~element-primitives)))))))
+        :else (str where-clause)))
 
 
-(define-operator IN :bliat "fdsa")
-(define-operator IN :suka [2 3 4])
-(define-operator BEETWEN :user (define-operator AND "dsfajkl" 2))
-
-(defn where-procedure-pattern [v]
-  (cond
-    (symbol? v) (format "%s" (str v))
-    (string? v) (format "\"%s\"" v)
-    (keyword? v) (str (symbol v))
-    (seqable? v) (str "(" (string/join ", " (map #(where-procedure-pattern %1) (eval v))) ")")
-    ;; (seqable? v) (if (and (= (symbol 'define-operator) (first v)))
-    ;;                (eval v)
-    ;;                (str "(" (string/join ", " (map #(where-procedure-pattern %1) (eval v))) ")"))
-    :else (str v)))
-
-
-(where-procedure-parser = :bliat "suka")
-(where-procedure-parser between :bliat 1 2)
-(eval `(where-procedure-parser < :bliat "fdsa"))
-(where-procedure-parser in :suka (1 2 3 4))
-(where-procedure-parser in :suka (1 2 3 4))
-
-(defmacro where-parse []
-  ())
-
-
-
-
-
-'(and (in 1 [2 3 4 5])
-      (or (between :col (1 2))
-          (like :col "blit")))
-
-
-(between :suka 1 5)
-
+;;; to test
+;; (where-procedure-parser [1 2 3])
+;; (where-procedure-parser (in :skur [1 2 3]))
+;; (where-procedure-parser (or (between :user "suka" (+ 2 3)) (= 4 31)))
+;; (where-procedure-parser (or 1 2))
+;; (where-procedure-parser (> 1 2))
+;; (where-procedure-parser (between :bqliat 1 (= 1 2)))
+;; (where-procedure-parser (between :user 2 1))
+;; (where-procedure-parser (between :user 2 1))
+;; (where-procedure-parser (like :suka "blait"))
+;; (where-procedure-parser (< :suka "blait"))
+;; (where-procedure-parser 1)
+;; (where-procedure-parser (+ 1 2))
+;; (where-procedure-parser 2)
+;; (where-procedure-parser [1 2 3 4])
+;; (where-procedure-parser (or (= 1 2) (> 2 (- 3 3))))
+;; (where-procedure-parser (or (= :suka 1)
+;;                             (= :some "bliat")
+;;                             (and (= :suka 2)
+;;                                  (= :some (= 1 "fuck"))
+;;                                  (between :one 1 2))))
+;; (where-procedure-parser (or (= :f1 1)
+;;                             (>= :f1 "bliat")
+;;                             (and (> :f2 2)
+;;                                  (= :f2 "fuck")
+;;                                  (between :f1 1 (+ 10 1000))
+;;                                  (or (= :suka "one")
+;;                                      (in :one [1 2 3 (+ 1 2)])))))
 
 
 ;; (let [t "USER"

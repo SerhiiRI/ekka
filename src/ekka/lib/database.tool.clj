@@ -108,32 +108,43 @@
                                                      (pair-where-pattern k v table-name)))
                                                 (seq key-where))))))))
 
-(defmacro where-string [current-string sql-dictionary table-name]
+(defn where-string [current-string sql-dictionary table-name]
   (str current-string
        (eval 
         (if-let [key-where (get sql-dictionary :where)]
-          (cond (string? key-where) `(str " WHERE %" ~key-where)
-                (map? key-where) (if (empty? (get sql-dictionary :join-on))
-                                   `(str " WHERE " (string/join " AND " (map #(apply pair-where-pattern %) (seq ~key-where))))
-                                   `(str " WHERE " (string/join " AND " (map #(let [[k v] %]
-                                                                                (if (string/includes? k ".")
-                                                                                  (pair-where-pattern k v)
-                                                                                  (pair-where-pattern k v ~table-name)))
-                                                                             (seq ~key-where)))))
-                (seqable? key-where) `(str " WHERE " (where-procedure-parser ~key-where)))))))
+          (do (println key-where)
+            (cond (string? key-where) `(str " WHERE %" ~key-where)
+                  (map? key-where) (if (empty? (get sql-dictionary :join-on))
+                                     `(str " WHERE " (string/join " AND " (map #(apply pair-where-pattern %) (seq ~key-where))))
+                                     `(str " WHERE " (string/join " AND " (map #(let [[k v] %]
+                                                                                  (if (string/includes? k ".")
+                                                                                    (pair-where-pattern k v)
+                                                                                    (pair-where-pattern k v ~table-name)))
+                                                                               (seq ~key-where)))))
+                  (seqable? key-where) `(str " WHERE " (where-procedure-parser ~key-where))))))))
 
-(where-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
+
+(where-string "SELECT * FROM user" '{:where {:CREDENTAIL.login "anatoli"
                                             :suka 2
                                             :METADATA.merried true}} "user")
 
 (where-string "SELECT * FROM user"
-              {:where (or (= :f1 1)
+              '{:where (or (= :f1 1)
                           (>= :f1 "bliat")
                           (and (> :f2 2)
                                (= :f2 "fuck")
                                (between :f1 1 (+ 10 1000))
                                (or (= :suka "one")
                                    (in :one [1 2 3 (+ 1 2)]))))} "user")
+
+
+(seq (get {:wher (1 2 (1 2) (4 5))} :wher))
+(defn suka [x]
+  (get x :wher))
+
+(suka '{:wher (1 2 (1 2) (4 5))})
+
+
 
 (select :user-table
         :inner-join {:CREDENTIAL :is_user_metadata :METADATA :id_user_metadata}
@@ -182,19 +193,71 @@
         dictionary-symb (gensym 'args)
         list-of-rules (create-rule-pipeline (keys args))]
     `(let [~table-name-symb (symbol ~table-name)
-           ~dictionary-symb ~args]
-       (println "---> " ~dictionary-symb)
+           ~dictionary-symb '~args]
        (eval (-> "SELECT"
             ~@(for [F list-of-rules]
-                `(~F ~dictionary-symb ~table-name)))))))
+                `(~F ~dictionary-symb ~table-name-symb)))))))
 
-(defmacro select [table-name & {:as args}]
-  (let [table-name-symb (gensym 'table-name)
-        list-of-rules (create-rule-pipeline (keys args))]
-    `(let [~table-name-symb (symbol ~table-name)]
-       (eval (-> "SELECT"
-            ~@(for [F list-of-rules]
-                `(~F ~args ~table-name)))))))
+
+(((1 3) 1) (124))
+
+(1 (2 2 3) nil)
+
+
+
+(3 4 5)
+((1 (2 3)) (3 (1 4)))
+
+(defmacro node
+  ([] `(fn [] nil))
+  ([x] `(fn [] ~x))
+  ([x left right] {:pre [(not (seqable? (x)))]} `(fn [] [~x ~left ~right])))
+
+
+
+(defmacro node
+  ([] `(fn [] nil))
+  ([x] `(fn [] ~x))
+  ([x left right] `(fn [] [~x ~left ~right])))
+
+(node (node 1)
+      (node nil)
+      (node (node 4)
+            (node 2)
+            (node 3)))
+;;   1
+;;  / \
+;; 1   4
+;;    / \
+;;   nil 3 
+(defn node-value [tree]
+  (let [tree-root-value (tree)]
+    (if (seqable? tree-root-value)
+      (first tree-root-value)
+      ((tree-root-value)))))
+
+(defn root [tree]
+  (if-let [tree-root-value (tree)]
+    (nth tree-root-value 0)
+    (node)))
+
+(defn right [tree]
+  (if-let [tree-root-value (tree)]
+    (nth tree-root-value 1)
+    (node)))
+
+(defn left [tree]
+  (if-let [tree-root-value (tree)]
+    (nth tree-root-value 2)
+    (node)))
+
+(node-value (root (left (left (node (node 1) (node 2) (node 3))))))
+(right (right (left (left (node 1 (node 2 (node 4) (node nil)) (node 3))))))
+
+(defmacro node
+  ([] `(fn [] nil))
+  ([x] `(fn [] [~x (node) (node)]))
+  ([x left right] `(fn [] [~x ~left ~right])))
 
 ;; (select :user_table
 ;;         :left-join {:METADATA :id_metadata} 
@@ -344,9 +407,6 @@
     (format "(%s)" some-string)
     some-string))
 
-(defmacro and-processor [& args]
-  `(into-border (string/join " AND " (binding [*where-border* true]
-                                       [~@args]))))
 (defmacro and-processor [& args]
   (let [v (vec (for [x (vec args)]
                  `(binding [*where-border* true]

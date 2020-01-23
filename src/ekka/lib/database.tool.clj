@@ -199,37 +199,17 @@
                 `(~F ~dictionary-symb ~table-name-symb)))))))
 
 
-(((1 3) 1) (124))
 
-(1 (2 2 3) nil)
+(1 (2 (3 (4 (5 nil)))))
 
-
-
-(3 4 5)
-((1 (2 3)) (3 (1 4)))
-
-(defmacro node
-  ([] `(fn [] nil))
-  ([x] `(fn [] ~x))
-  ([x left right] {:pre [(not (seqable? (x)))]} `(fn [] [~x ~left ~right])))
-
+(((((())))) (((()))) ((((())))))
 
 
 (defmacro node
   ([] `(fn [] nil))
-  ([x] `(fn [] ~x))
+  ([x] `(fn [] [~x (node) (node)]))
   ([x left right] `(fn [] [~x ~left ~right])))
 
-(node (node 1)
-      (node nil)
-      (node (node 4)
-            (node 2)
-            (node 3)))
-;;   1
-;;  / \
-;; 1   4
-;;    / \
-;;   nil 3 
 (defn node-value [tree]
   (let [tree-root-value (tree)]
     (if (seqable? tree-root-value)
@@ -254,10 +234,7 @@
 (node-value (root (left (left (node (node 1) (node 2) (node 3))))))
 (right (right (left (left (node 1 (node 2 (node 4) (node nil)) (node 3))))))
 
-(defmacro node
-  ([] `(fn [] nil))
-  ([x] `(fn [] [~x (node) (node)]))
-  ([x left right] `(fn [] [~x ~left ~right])))
+
 
 ;; (select :user_table
 ;;         :left-join {:METADATA :id_metadata} 

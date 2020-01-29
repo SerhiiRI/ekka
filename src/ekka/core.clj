@@ -4,6 +4,9 @@
    [clojure.string :as string]))
 
 
+(sort (keys (ns-publics 'clojure.string)))
+(-> 'clojure.string ns-publics keys sort)
+
 (def user-database [])
 
 (var user-database)
@@ -427,5 +430,6 @@
                 :name "Aleksandr"
                 :dla_mamusi "Olek"
                 :METADATA.merried false})
+
 
 

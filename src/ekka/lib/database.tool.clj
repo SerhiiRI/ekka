@@ -1,4 +1,4 @@
-(ns ekka.database.tool
+(ns ekka.database.select
   (:require
    [clojure.string :as string]
    ;; [ekka.database.tool :as tool]
@@ -96,24 +96,85 @@
          (str " " (string/join ", " (map (comp str symbol) columns)))
          " *") " FROM " table-name))
 
-;;; where string constructor 
-(defn where-string [current-string sql-dictionary table-name]
-  (str current-string
-       (if-let [key-where (get sql-dictionary :where)]
-         (if (empty? (get sql-dictionary :join-on))
-           (str " WHERE " (string/join " " (map #(apply pair-where-pattern %) (seq key-where))))
-           (str " WHERE " (string/join " " (map #(let [[k v] %]
-                                                   (if (string/includes? k ".")
-                                                     (pair-where-pattern k v)
-                                                     (pair-where-pattern k v table-name)))
-                                                (seq key-where))))))))
+
+
+;;;;;;;;;;;;;
+;;; Where ;;;
+;;;;;;;;;;;;;
+(or (and ))
+
+(defmacro and-processor [& args]
+  (let [v (vec (for [x (vec args)]
+                 `(binding [*where-border* true]
+                    (where-procedure-parser ~x))))]
+    `(into-border (string/join " AND " ~v))))
+
+(defmacro or-processor [& args]
+  (let [v (vec (for [x (vec args)]
+                 `(binding [*where-border* true]
+                    (where-procedure-parser ~x))))]
+    `(into-border (string/join " OR " ~v))))
+
+;; (and-processor (= 1 2) (= 1 (- 2 3)))
+;; (and-processor 1 2)
+;; (or-processor (= 1 2) (= 1 (- 2 3)))
+;; (or-processor 1 2)
+
+
+
+
+(defmacro where-procedure-parser [where-clause]
+  (cond (symbol? where-clause) `(format "%s" (str '~where-clause))
+        (string? where-clause) `(format "\"%s\"" ~where-clause)
+        (keyword? where-clause) `(str (symbol ~where-clause))
+        (seqable? where-clause) (let [function (first where-clause) args (rest where-clause)]
+                                  (condp = function
+                                    'or `(or-processor ~@args)
+                                    'and `(and-processor ~@args)
+                                    '> `(define-operator '~function ~@args)
+                                    '< `(define-operator '~function ~@args)
+                                    '= `(define-operator '~function ~@args)
+                                    '>= `(define-operator '~function ~@args)
+                                    '<= `(define-operator '~function ~@args)
+                                    '<> `(define-operator '~function ~@args)
+                                    '!= `(define-operator '<> ~@args)
+                                    'between `(between-procedure ~@args)
+                                    'like `(define-operator '~(symbol 'LIKE) ~@args)
+                                    'in `(define-operator '~(symbol 'LIKE) ~@args)
+                                    'and `(define-operator '~(symbol 'LIKE) ~@args)
+                                    (if (and (symbol? function) (resolve function))
+                                      (let [result (eval where-clause)]
+                                        `(where-procedure-parser ~result))
+                                      (let [element-primitives (vec (for [x where-clause]
+                                                                      `(where-procedure-parser ~x)))]
+                                        `(binding [*where-border* true]
+                                           (into-border (string/join ", " ~element-primitives)))))))
+        :else (str where-clause)))
+
+(defn into-border [some-string]
+  (if *where-border* 
+    (format "(%s)" some-string)
+    some-string))
+
+
+(defn between-procedure [field v1 v2]
+  (format "%s BETWEEN %s AND %s"
+          (eval `(where-procedure-parser ~field))
+          (eval `(where-procedure-parser ~v1))
+          (eval `(where-procedure-parser ~v2))))
+
+(defn define-operator [operator field-1 field-2]
+  (string/join " " [(eval `(where-procedure-parser ~field-1))
+                    operator
+                    (eval `(where-procedure-parser ~field-2))]))
+
 
 (defn where-string [current-string sql-dictionary table-name]
   (str current-string
        (eval 
         (if-let [key-where (get sql-dictionary :where)]
           (do (println key-where)
-            (cond (string? key-where) `(str " WHERE %" ~key-where)
+            (cond (string? key-where) `(str " WHERE " ~key-where)
                   (map? key-where) (if (empty? (get sql-dictionary :join-on))
                                      `(str " WHERE " (string/join " AND " (map #(apply pair-where-pattern %) (seq ~key-where))))
                                      `(str " WHERE " (string/join " AND " (map #(let [[k v] %]
@@ -124,26 +185,42 @@
                   (seqable? key-where) `(str " WHERE " (where-procedure-parser ~key-where))))))))
 
 
-(where-string "SELECT * FROM user" '{:where {:CREDENTAIL.login "anatoli"
-                                            :suka 2
-                                            :METADATA.merried true}} "user")
+;; (where-string "SELECT * FROM user" '{:where {:CREDENTAIL.login "anatoli"
+;;                                             :suka 2
+;;                                             :METADATA.merried true}} "user")
 
-(where-string "SELECT * FROM user"
-              '{:where (or (= :f1 1)
-                          (>= :f1 "bliat")
-                          (and (> :f2 2)
-                               (= :f2 "fuck")
-                               (between :f1 1 (+ 10 1000))
-                               (or (= :suka "one")
-                                   (in :one [1 2 3 (+ 1 2)]))))} "user")
+;; (where-string "SELECT * FROM user"
+;;               '{:where (or (= :f1 1)
+;;                           (>= :f1 "bliat")
+;;                           (and (> :f2 2)
+;;                                (= :f2 "fuck")
+;;                                (between :f1 1 (+ 10 1000))
+;;                                (or (= :suka "one")
+;;                                    (in :one [1 2 3 (+ 1 2)]))))} "user")
+
+(defsqljoinrule inner-join-string)
+(defsqljoinrule left-join-string)
+(defsqljoinrule right-join-string)
+;;; non-standart rule
+(defsqljoinrule outer-right-join-string)
+(defsqljoinrule outer-left-join-string)
+
+(defn create-rule-pipeline [keys]
+  (let [key-in? (fn [k col]
+                  (when (some #(= k %) col)
+                    (symbol (str (symbol k) "-string"))))]
+    (reduce #(if-let [k (key-in? %2 keys)] (conj %1 k) %1) [] *accepted-select-rules*)))
 
 
-(seq (get {:wher (1 2 (1 2) (4 5))} :wher))
-(defn suka [x]
-  (get x :wher))
-
-(suka '{:wher (1 2 (1 2) (4 5))})
-
+(defmacro select [table-name & {:as args}]
+  (let [table-name-symb (gensym 'table-name)
+        dictionary-symb (gensym 'args)
+        list-of-rules (create-rule-pipeline (keys args))]
+    `(let [~table-name-symb (symbol ~table-name)
+           ~dictionary-symb '~args]
+       (eval (-> "SELECT"
+            ~@(for [F list-of-rules]
+                `(~F ~dictionary-symb ~table-name-symb)))))))
 
 
 (select :user-table
@@ -174,41 +251,37 @@
                         (or (= :suka "one")
                             (in :one [1 2 3 (+ 1 2)])))))
 
-(defsqljoinrule inner-join-string)
-(defsqljoinrule left-join-string)
-(defsqljoinrule right-join-string)
-;;; non-standart rule
-(defsqljoinrule outer-right-join-string)
-(defsqljoinrule outer-left-join-string)
-
-(defn create-rule-pipeline [keys]
-  (let [key-in? (fn [k col]
-                  (when (some #(= k %) col)
-                    (symbol (str (symbol k) "-string"))))]
-    (reduce #(if-let [k (key-in? %2 keys)] (conj %1 k) %1) [] *accepted-select-rules*)))
+(select :user-table
+        :inner-join {:CREDENTIAL :is_user_metadata :METADATA :id_user_metadata}
+        :right-join {:A1.id_self :user.id_user_a1 :B1.id_self :USER.id_user_b2}
+        :left-join ["suka ON suka.id=user.id_suka" "dupa ON dupa.id=er.id_dupara"]
+        :outer-left-join [:suka :bliat]
+        :outer-right-join :credential
+        :column [:name :dla_mamusi :CREDENTAIL.login]
+        :where "SOME.id=one AND SOME_THER.one=4")
 
 
-(defmacro select [table-name & {:as args}]
-  (let [table-name-symb (gensym 'table-name)
-        dictionary-symb (gensym 'args)
-        list-of-rules (create-rule-pipeline (keys args))]
-    `(let [~table-name-symb (symbol ~table-name)
-           ~dictionary-symb '~args]
-       (eval (-> "SELECT"
-            ~@(for [F list-of-rules]
-                `(~F ~dictionary-symb ~table-name-symb)))))))
-
-
-
-(1 (2 (3 (4 (5 nil)))))
-
-(((((())))) (((()))) ((((())))))
-
+;; (1 (2 (3 (4 (5 nil)))))
 
 (defmacro node
   ([] `(fn [] nil))
   ([x] `(fn [] [~x (node) (node)]))
   ([x left right] `(fn [] [~x ~left ~right])))
+
+
+(def a (node 1
+             (node 2
+                   (node nil)
+                   (node 4))
+             (node 4
+                   (node nil)
+                   (node 3
+                         (node 1)
+                         (node nil)))))
+
+(node-value (root (right (right (left a)))))
+
+
 
 (defn node-value [tree]
   (let [tree-root-value (tree)]
@@ -223,17 +296,16 @@
 
 (defn right [tree]
   (if-let [tree-root-value (tree)]
-    (nth tree-root-value 1)
+    (nth tree-root-value 2)
     (node)))
 
-(defn left [tree]
+(defn left [tree]                       ; czysto¶ci 
   (if-let [tree-root-value (tree)]
-    (nth tree-root-value 2)
+    (nth tree-root-value 1)
     (node)))
 
 (node-value (root (left (left (node (node 1) (node 2) (node 3))))))
 (right (right (left (left (node 1 (node 2 (node 4) (node nil)) (node 3))))))
-
 
 
 ;; (select :user_table
@@ -379,67 +451,7 @@
 ;;  :left-join {:METADATA :id_metadata}}
 
 
-(defn into-border [some-string]
-  (if *where-border* 
-    (format "(%s)" some-string)
-    some-string))
 
-(defmacro and-processor [& args]
-  (let [v (vec (for [x (vec args)]
-                 `(binding [*where-border* true]
-                    (where-procedure-parser ~x))))]
-    `(into-border (string/join " AND " ~v))))
-
-(defmacro or-processor [& args]
-  (let [v (vec (for [x (vec args)]
-                 `(binding [*where-border* true]
-                    (where-procedure-parser ~x))))]
-    `(into-border (string/join " OR " ~v))))
-
-;; (and-processor (= 1 2) (= 1 (- 2 3)))
-;; (and-processor 1 2)
-;; (or-processor (= 1 2) (= 1 (- 2 3)))
-;; (or-processor 1 2)
-
-(defn between-procedure [field v1 v2]
-  (format "%s BETWEEN %s AND %s"
-          (eval `(where-procedure-parser ~field))
-          (eval `(where-procedure-parser ~v1))
-          (eval `(where-procedure-parser ~v2))))
-
-(defn define-operator [operator field-1 field-2]
-  (string/join " " [(eval `(where-procedure-parser ~field-1))
-                    operator
-                    (eval `(where-procedure-parser ~field-2))]))
-
-(defmacro where-procedure-parser [where-clause]
-  (cond (symbol? where-clause) `(format "%s" (str '~where-clause))
-        (string? where-clause) `(format "\"%s\"" ~where-clause)
-        (keyword? where-clause) `(str (symbol ~where-clause))
-        (seqable? where-clause) (let [function (first where-clause) args (rest where-clause)]
-                                  (condp = function
-                                    'or `(or-processor ~@args)
-                                    'and `(and-processor ~@args)
-                                    '> `(define-operator '~function ~@args)
-                                    '< `(define-operator '~function ~@args)
-                                    '= `(define-operator '~function ~@args)
-                                    '>= `(define-operator '~function ~@args)
-                                    '<= `(define-operator '~function ~@args)
-                                    '<> `(define-operator '~function ~@args)
-                                    '!= `(define-operator '<> ~@args)
-                                    'between `(between-procedure ~@args)
-                                    'like `(define-operator '~(symbol 'LIKE) ~@args)
-                                    'in `(define-operator '~(symbol 'LIKE) ~@args)
-                                    'and `(define-operator '~(symbol 'LIKE) ~@args)
-                                    (if (and (symbol? function) (resolve function))
-                                      (let [result (eval where-clause)]
-                                        `(where-procedure-parser ~result))
-                                      (let [element-primitives (vec (for [x where-clause]
-                                                                      `(where-procedure-parser ~x)))]
-                                        ;; `(str "(" (string/join ", " ~element-primitives) ")")
-                                        `(binding [*where-border* true]
-                                           (into-border (string/join ", " ~element-primitives)))))))
-        :else (str where-clause)))
 
 
 ;;; to test
@@ -498,3 +510,22 @@
 ;;          "suka ON suka.is=user.id"]
 ;;       f (get-function-by-join-type j)]
 ;;   (map #(f t %1) j))
+
+
+
+;; (defrecord Some [suka bliat])
+;; (defrecord SOme2 [a b])
+
+;; (def a (Some. "costam" (SOme2. 1 {1 2 :kurwa "mac"})))
+
+;; (:a (:bliat a))
+
+;; (get-in a [:bliat :b :kurwa])
+
+
+
+
+
+
+
+

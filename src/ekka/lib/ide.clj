@@ -19,8 +19,8 @@
   content)
 
 (defmacro butt
-  ([txt act] (button :text txt
-                     :listen [:action (fn [] (act))])))
+  ([txt act] `(button :text ~txt
+                     :listen [:action (fn [] (~@act))])))
 
 (def b (butt "Hi" (alert "Jak to może działać?")))
 

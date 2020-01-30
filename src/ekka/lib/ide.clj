@@ -1,18 +1,16 @@
 (ns hello-seesaw.core
- (:use seesaw.core
-       seesaw.mig
-       seesaw.chooser
-       seesaw.make-widget))
+  (:use seesaw.core
+        seesaw.mig
+        seesaw.chooser
+        seesaw.make-widget))
 
 ;; nieco podprawiłem ci funkcje, polecam
 ;; dopni jej do jakiegoś skrótu w VS CODE
 (defmacro pm
   "Funkcja rozkladania makra w śriodowisku Visual Studio Code"
   [exp]
-  (do (require '[clojure.pprint :as pp])
-      (alter-var-root #'pp/*print-suppress-namespaces* (constantly true))
-      (pp/pprint (macroexpand-1 exp))))
-
+  (do (alter-var-root #'clojure.pprint/*print-suppress-namespaces* (constantly true))
+      (clojure.pprint/pprint (macroexpand-1 exp))))
 
 
 (native!)

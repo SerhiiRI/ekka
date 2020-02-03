@@ -76,6 +76,7 @@
         seesaw.core
         seesaw.mig
         seesaw.chooser
+        seesaw.border
         seesaw.make-widget)
   (:require [clojure.string :as string]))
 
@@ -110,7 +111,7 @@
 (defn vertical-list-config-panel [items]
   (grid-panel :columns (count items) :items items))
 (defn vertical-config-panel [l component]
-  (grid-panel :columns 2 :hgap -80 :items [(label :valign :top :text (transform-label-to-name l)) component]))
+  (grid-panel :columns 2 :hgap -80 :items [(label :valign :top :text (transform-label-to-name l) :border (empty-border :top 3 :left 6)) component]))
 (defn horizontal-config-panel
   ([component-vec]
    (vertical-panel :items component-vec))
@@ -210,8 +211,7 @@
      (scrollable (horizontal-config-panel
                   (conj (vec (map #(generate-form config-changer [] %) (deref main-configuration)))
                         (vertical-list-config-panel
-                         [(button :text "Save config" :listen [:action (fn [e] (config-save save-function))])]))))))
-  )
+                         [(button :text "Save config" :listen [:action (fn [e] (config-save save-function))])])))))))
 
 
 

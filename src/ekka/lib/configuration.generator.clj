@@ -107,18 +107,17 @@
 ;;;;;;;;;;;;;;;
 
 ;;; Tu się znajdują te layouty i jak ja ich używam. 
-
 (defn vertical-list-config-panel [items]
-  (grid-panel :columns (count items) :items items))
+  (grid-panel :background "#FFFFFF" :columns (count items) :items items :border (empty-border :top 5)))
 (defn vertical-config-panel [l component]
-  (grid-panel :columns 2 :hgap -80 :items [(label :valign :top :text (transform-label-to-name l) :border (empty-border :top 3 :left 6)) component]))
+  (grid-panel :background "#FFFFFF" :columns 2 :hgap -80 :items [(label :foreground "#363636" :valign :top :text (transform-label-to-name l) :border (empty-border :top 3 :left 6)) component]))
 (defn horizontal-config-panel
   ([component-vec]
-   (vertical-panel :items component-vec))
+   (vertical-panel :background "#FFFFFF" :items component-vec))
   ([component-vec border-string]
-   (vertical-panel :items component-vec :border (transform-label-to-name border-string))))
+   (vertical-panel :background "#FFFFFF" :items component-vec :border (compound-border  (transform-label-to-name border-string ) (empty-border :top 4 :bottom 3)))))
 
-
+(show-options (label))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Configuration cuncurrent management functions ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -142,13 +141,28 @@
 
 ;;; templates for simple text configuration option
 (defn text-component [configuration-changer config-key-vector default-text]
-  (text :text default-text
+  (text :text default-text :background "#FFFFFF"
         :listen [:selection (fn [e] (when-let [t (text e)]
-                                      (configuration-changer config-key-vector t)))]))
+                                      (configuration-changer config-key-vector t)
+                                      (let [lower-str (string/lower-case (string/trim t))
+                                            smb-arr "0123456789abcdef"
+                                            [hash & color] lower-str
+                                            c (count color)]
+                                        (if (and (= hash \#)
+                                                 (or (= c 3) (= c 6))
+                                                 (reduce #(and %1 (some (fn [_s] (= %2 _s)) smb-arr)) true color))
+                                          (config! e :background lower-str :foreground (let [clr (apply str color)
+                                                                                             hex (read-string(if (= (count clr) 3)
+                                                                                                               (str "0x" clr)
+                                                                                                               (apply str "0x" (map first (partition 2 "123456")))))]
+                                                                                         (if (< hex (read-string "0x555")) "#FFF" "#000")))
+                                          (config! e :background "#FFFFFF" :foreground "#000000")))))]))
+
+(show-options (text))
 
 ;;; templates for boolean type of confuguration parameter
 (defn checkbox-component [configuration-changer config-key-vector default-t-f-value]
-  (checkbox :selected? default-t-f-value
+  (checkbox :selected? default-t-f-value :background "#FFFFFF"
             :listen [:action #(configuration-changer config-key-vector (selection %))]))
 
 ;;; template for list of strings which normaly separates by `,` symbol.  
@@ -161,7 +175,7 @@
         (fn [text] (vec (filter #(not (empty? %))
                             (map string/trim
                                  (string/split text #",")))))]
-      (text :text (string/join ", " default-config-vector-list)
+      (text :text (string/join ", " default-config-vector-list) :background "#FFFFFF"
             :listen [:selection (fn [e] (when-let [t (text e)]
                                           (configuration-changer
                                            config-key-vector
@@ -169,14 +183,14 @@
 
 ;;; template for selecting one of list available options. Selected option is first options in list
 (defn listbox-component [configuration-changer config-key-vector default-config-list-model]
-  (let [listbox-select-from-items (fn  [item items]
+  (let [listbox-select-from-items (fn [item items]
                                     (let [i (.indexOf items item)]
                                       (if (> 0 i) items
                                           (if (= i 0) items
                                               (vec (concat (vector (nth items i))
                                                            (vec (subvec items 0 i))
                                                            (vec (subvec items (inc i) (count items)))))))))]
-    (selection! (listbox :model default-config-list-model
+    (selection! (listbox :model default-config-list-model :border (compound-border (line-border :color "#999999" :top 1 :left 1 :bottom 1 :right 1) (empty-border :right 1 :top 1 :bottom 1 :color "#999999" )) :background "#FFFFFF"
                          :listen [:selection #(when-let [t (selection %)]
                                                 (configuration-changer
                                                  config-key-vector
@@ -242,7 +256,6 @@
                                                     :Inbaded-Panel-2 {:color "#ffffff"
                                                                       :background-color "#111000"}}
                                        :costam "jeszcze"}))
-
 
 (-> f pack! show!)
 

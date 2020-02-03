@@ -28,8 +28,8 @@
 ;;; to odwołaj transakcje i probuj do tej pory, dopóki się nie wykona kod w transakcje.
 
 ;;; Typy 'zmiennę' (bo też nie jest tak do konca):
-;; +------------+-----------+-------------+
-;; |            |Coordinated|Uncoordinated|
+;;              +-----------+-------------+
+;;              |Coordinated|Uncoordinated|
 ;; +------------+-----------+-------------+
 ;; |Synchronous |Refs       |Atoms        |
 ;; +------------+-----------+-------------+
@@ -175,11 +175,11 @@
                                               (vec (concat (vector (nth items i))
                                                            (vec (subvec items 0 i))
                                                            (vec (subvec items (inc i) (count items)))))))))]
-    (listbox :model default-config-list-model
-             :listen [:selection #(when-let [t (selection %)]
-                                    (configuration-changer
-                                     config-key-vector
-                                     (listbox-select-from-items t default-config-list-model)))])))
+    (selection! (listbox :model default-config-list-model
+                         :listen [:selection #(when-let [t (selection %)]
+                                                (configuration-changer
+                                                 config-key-vector
+                                                 (listbox-select-from-items t default-config-list-model)))]) (first default-config-list-model))))
 
 
 ;;; helper function which recursive build Panel depend on `param-map` parameter
@@ -198,17 +198,20 @@
 
 (defn generate-configuration-form
   "Main function to generating configuration window
-  Version 0.1
-  - Nie implementuje co robić z daną konfiguracją, jeśli ktoś klinki \"Save config\", dla rozwiązania problemu trzeba przkazać lambdę wewnątrz funkcji `config-save` jako pierwszy argument, czyuli podminieć `#'println`. "
-  [configuration]
-  (let [main-configuration (ref configuration)
-        back-up-configuration configuration
-        config-changer (configuration-change main-configuration)
-        config-save (configuration-on-event main-configuration)]
-    (scrollable (horizontal-config-panel
-               (conj (vec (map #(generate-form config-changer [] %) (deref main-configuration)))
-                     (vertical-list-config-panel
-                      [(button :text "Save config" :listen [:action (fn [e] (config-save #'println))])]))))))
+  Version: 0.2
+  Function generate GUI scrollable panel for `configuration` map parameter"
+  ([configuration] {:pre [(map? configuration)]}
+   (generate-configuration-form configuration #'println))
+  ([configuration save-function] {:pre [(map? configuration)]}
+   (let [main-configuration (ref configuration)
+         back-up-configuration configuration
+         config-changer (configuration-change main-configuration)
+         config-save (configuration-on-event main-configuration)]
+     (scrollable (horizontal-config-panel
+                  (conj (vec (map #(generate-form config-changer [] %) (deref main-configuration)))
+                        (vertical-list-config-panel
+                         [(button :text "Save config" :listen [:action (fn [e] (config-save save-function))])]))))))
+  )
 
 
 

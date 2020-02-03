@@ -1,4 +1,4 @@
-;;; Jou bro, jeśli nie wiedziałeś, to wewnątrz bibliteki `seesaw.dev` znajdują sie dwie funkcji:
+﻿;;; Jou bro, jeśli nie wiedziałeś, to wewnątrz bibliteki `seesaw.dev` znajdują sie dwie funkcji:
 ;;; Dwie funkcje drukują to w STDOUT, czuli tak niby dają println. To funkcje wyłącznie dla
 ;;; podpowiadania "co?" i "jak?" robić z kompoenntem którego chcesz używać.
 ;;; 
@@ -12,7 +12,66 @@
 ;;;
 ;;; zajębistę, cnie? :)
 
-(ns hello-seesaw.core
+
+;;; Między innym, pamiętasz że mówiłem że clojure to język niezmienny. Probując zachować tą zasadę,
+;;; Rich Hickey, realizując asynchroniczność, synchroniczność odwoływań, on potworzył typy
+;;; referencyjne. Więc nie do końca clojure jest językiem niezmiennym. No to są typy
+;;; specjlanie. Clojure, w odróźnieniu od innych języków ma tranzakcyjną model pamięci(on tylko
+;;; jeden taki, ktory w swoim rdzeniu to ma). Jeśli rozumiesz jak dziala synchronizacja i
+;;; wykorzystywanie pamięci wątkami to będzie łżej zrouzmieć to co ja mówie.
+
+;;; Jeśli dwa wątki zapisują w jedną przestrzeń cokolwiek, to dla nich są mechanizmy sterownia. Np
+;;; Lock - czyli synchroniczne podejście. Gdy jeden wątek/process czeka, a inny wykonuje działanie
+;;; na lock-u. Asynchronicze to gdy jedna i druga wartość probują się dobić do jednej pamiąci bez
+;;; kontroli Lock. Czyli jedna może przypadkiem zatrzeć rezultat innej. Więc dla tego są mechanizmy
+;;; kontrolne. Clojure wykorzystuję tranzakcyjne podejście. Czyli jeśli tranzakcja była uszkodzona,
+;;; to odwołaj transakcje i probuj do tej pory, dopóki się nie wykona kod w transakcje.
+
+;;; Typy 'zmiennę' (bo też nie jest tak do konca):
+;; +------------+-----------+-------------+
+;; |            |Coordinated|Uncoordinated|
+;; +------------+-----------+-------------+
+;; |Synchronous |Refs       |Atoms        |
+;; +------------+-----------+-------------+
+;; |Asynchronous|Vars       |Agents       |
+;; +------------+-----------+-------------+
+
+;; Coordinated - An operation that depends on cooperation from other operations (possibly, other
+;; operations at least do not interfere with it) in order to produce correct results. For example, a
+;; banking operation that involves more than one account.
+
+;; Uncoordinated - An operation that does not affect other operations in any way. For example, when
+;; downloading 100 Web pages concurrently, each operation does not affect the others.
+
+;; Synchronous - When the caller's thread waits, blocks, or sleeps until it has access to a given
+;; resource or context.
+
+;; Asynchronous - Operations that can be started or scheduled without blocking the caller's thread.
+
+;;; Teraz przyklad jak ja używam `ref`. Czyli prosty typ synchorniczy i skoordynowany:
+;; Tworzymy zmienną zmienną
+
+;; (def s (ref "some-value"))
+
+;; otzymamy jej. Dla tego trzeba używać operatora biezpiecznego wyciągnęcia z wątku czegokolwiek
+
+;; (deref ref) ;=> "some-value"
+
+;; lub krócej
+
+;; @ref ;=> "some-value"
+
+;; Dla podmiany, warto używać (ref-set s "chuj"), i jedna rzeć. Ponieważ wszystkie dany rozporszonie
+;; widoczne między wątkami, to dla podmiany czego kolwiek używaj bloka tranzakcyjnygo. (dosync
+;; (ref-set s "chuj")), bez dosync cie nie puści, bo będzie to znaczyć że nie chcesz używać
+;; transakcji, co jest niezbędne., a więc:
+
+;; @ref ;=> "chuj"
+
+;; używam tego dla tego żebym z komponentów i ich listenerów zmieniać samą mapę konfgiuracji
+
+
+(ns ekka.configuration.generator
   (:use seesaw.dev
         seesaw.core
         seesaw.mig
@@ -69,7 +128,7 @@
 
 (defn configuration-change [configuration-reference]
   (fn [keys value-to-replace]
-    (dosync (ref-set configuration (assoc-in (deref configuration-reference) keys value-to-replace)))))
+    (dosync (ref-set configuration-reference (assoc-in (deref configuration-reference) keys value-to-replace)))))
 
 (defn configuration-on-event [configuration-reference]
   (fn [f]
@@ -109,18 +168,18 @@
 
 ;;; template for selecting one of list available options. Selected option is first options in list
 (defn listbox-component [configuration-changer config-key-vector default-config-list-model]
-  (let [] (fn  [item items]
-            (let [i (.indexOf items item)]
-              (if (> 0 i) items
-                  (if (= i 0) items
-                      (vec (concat (vector (nth items i))
-                                   (vec (subvec items 0 i))
-                                   (vec (subvec items (inc i) (count items))))))))))
-  (listbox :model default-config-list-model
-           :listen [:selection #(when-let [t (selection %)]
-                                  (configuration-changer
-                                   config-key-vector
-                                   (listbox-select-from-items t default-config-list-model)))]))
+  (let [listbox-select-from-items (fn  [item items]
+                                    (let [i (.indexOf items item)]
+                                      (if (> 0 i) items
+                                          (if (= i 0) items
+                                              (vec (concat (vector (nth items i))
+                                                           (vec (subvec items 0 i))
+                                                           (vec (subvec items (inc i) (count items)))))))))]
+    (listbox :model default-config-list-model
+             :listen [:selection #(when-let [t (selection %)]
+                                    (configuration-changer
+                                     config-key-vector
+                                     (listbox-select-from-items t default-config-list-model)))])))
 
 
 ;;; helper function which recursive build Panel depend on `param-map` parameter

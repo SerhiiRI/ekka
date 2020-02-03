@@ -33,7 +33,7 @@
   `(button :text ~txt
            :listen [:action (fn [~'e] (~@act))]))
 
-(def b (butt* "Hi" (alert "Jak to może działać?")))
+; (def b (butt* "Hi" (alert "Jak to może działać?")))
 
 (defn butt
   "Podejście typowo funkcujne, poprostu wrzuć funkcje którom ma wykorzystywać listener, ogólnei podejście zalecane"
@@ -41,23 +41,18 @@
   (button :text txt
           :listen [:action one-arg-action]))
 
-(def b (butt "Hi" (fn [e] (alert "Jak to może działać?"))))
+; (def b (butt "Hi" (fn [e] (alert "Jak to może działać?"))))
 
-
-
-
-
-(display b)
-(-> f pack! show!)
-
+; (display b)
+; (-> f pack! show!)
 
 
 (def mp (mig-panel
          :constraints ["fill" "center"]
          :items [[(mig-panel
                    :constraints ["wrap"]
-                   :items [[(butt "Button 1" (alert e "b1"))]
-                           [(butt "Button 2" (alert e# "b2"))]])]
+                   :items [[(butt "Button 1" (fn [e] (alert "b1")))]
+                           [(butt* "Button 2" (alert "b2"))]])]
                  ["Option 2"]]))
 
 (display mp)

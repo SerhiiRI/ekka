@@ -139,26 +139,31 @@
 ;;; UI templates components ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn colorizator-text-component "Colorize component, by hexadecemal value" [target]
+  (let [lower-str (string/lower-case (string/trim (text target)))
+        smb-arr "0123456789abcdef"
+        [hash & color] lower-str
+        c (count color)]
+    (if (and (= hash \#)
+             (or (= c 3) (= c 6))
+             (reduce #(and %1 (some (fn [_s] (= %2 _s)) smb-arr)) true color))
+      (config! target
+               :background lower-str
+               :foreground (let [clr (apply str color)
+                                 hex (read-string (if (= (count clr) 3)
+                                                    (str "0x" clr)
+                                                    (apply str "0x" (map first (partition 2 clr)))))]
+                             (if (< hex 1365) "#FFF" "#000")))
+      (config! target :background "#FFFFFF" :foreground "#000000"))))
+
+
 ;;; templates for simple text configuration option
 (defn text-component [configuration-changer config-key-vector default-text]
-  (text :text default-text :background "#FFFFFF"
-        :listen [:selection (fn [e] (when-let [t (text e)]
-                                      (configuration-changer config-key-vector t)
-                                      (let [lower-str (string/lower-case (string/trim t))
-                                            smb-arr "0123456789abcdef"
-                                            [hash & color] lower-str
-                                            c (count color)]
-                                        (if (and (= hash \#)
-                                                 (or (= c 3) (= c 6))
-                                                 (reduce #(and %1 (some (fn [_s] (= %2 _s)) smb-arr)) true color))
-                                          (config! e :background lower-str :foreground (let [clr (apply str color)
-                                                                                             hex (read-string(if (= (count clr) 3)
-                                                                                                               (str "0x" clr)
-                                                                                                               (apply str "0x" (map first (partition 2 "123456")))))]
-                                                                                         (if (< hex (read-string "0x555")) "#FFF" "#000")))
-                                          (config! e :background "#FFFFFF" :foreground "#000000")))))]))
+  (colorizator-text-component (text :text default-text :background "#FFFFFF"
+                     :listen [:selection (fn [e] (when-let [t (text e)]
+                                                   (configuration-changer config-key-vector t)
+                                                   (colorizator-text-component e)))])))
 
-(show-options (text))
 
 ;;; templates for boolean type of confuguration parameter
 (defn checkbox-component [configuration-changer config-key-vector default-t-f-value]
@@ -235,29 +240,29 @@
 
 ;;; debug functionality
 
-(native!)
+;; (native!)
 
-(def f (frame :title "bliat"))
+;; (def f (frame :title "bliat"))
 
-(defn display "Display function for opened window" [content]
-  (config! f :content content)
-  content)
+;; (defn display "Display function for opened window" [content]
+;;   (config! f :content content)
+;;   content)
 
-(display (generate-configuration-form {:one "bliat"
-                                       :two "rhre"
-                                       :other ["one" "two" "thee" "you" "back" "to" "me"]
-                                       :other-selector ["one" "two" "thee" "you" "back" "to" "me"]
-                                       :one-more true
-                                       :StyleBox-1 {:change-style true
-                                                    :Inbaded-Panel-2 {:styles-select ["dark" "ligth"]
-                                                                      :color "#ffffff"
-                                                                      :background-color "#111000"}}
-                                       :StyleBox-2 {:change-style true
-                                                    :Inbaded-Panel-2 {:color "#ffffff"
-                                                                      :background-color "#111000"}}
-                                       :costam "jeszcze"}))
+;; (display (generate-configuration-form {:one "bliat"
+;;                                        :two "rhre"
+;;                                        :other ["one" "two" "thee" "you" "back" "to" "me"]
+;;                                        :other-selector ["one" "two" "thee" "you" "back" "to" "me"]
+;;                                        :one-more true
+;;                                        :StyleBox-1 {:change-style true
+;;                                                     :Inbaded-Panel-2 {:styles-select ["dark" "ligth"]
+;;                                                                       :color "#ffffff"
+;;                                                                       :background-color "#111000"}}
+;;                                        :StyleBox-2 {:change-style true
+;;                                                     :Inbaded-Panel-2 {:color "#ffffff"
+;;                                                                       :background-color "#111000"}}
+;;                                        :costam "jeszcze"}))
 
-(-> f pack! show!)
+;; (-> f pack! show!)
 
 
 ;;;;;;;;;;;;;

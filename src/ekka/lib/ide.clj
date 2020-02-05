@@ -1,4 +1,4 @@
-(ns hello-seesaw.core
+(ns ekka.lib.ide
   (:use seesaw.core
         seesaw.mig
         seesaw.chooser

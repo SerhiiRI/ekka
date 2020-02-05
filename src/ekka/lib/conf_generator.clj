@@ -71,7 +71,7 @@
 ;; używam tego dla tego żebym z komponentów i ich listenerów zmieniać samą mapę konfgiuracji
 
 
-(ns ekka.configuration.generator
+(ns ekka.lib.conf-generator
   (:use seesaw.dev
         seesaw.core
         seesaw.mig

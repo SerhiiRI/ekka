@@ -1,27 +1,47 @@
 (ns ekka.lib.datatool.key-value-tool
   (:require
    [clojure.string :as string]
-   [ekka.lib.datatool.sql-tool :as toolbox]
-    ))
+   [ekka.lib.datatool.sql-tool :as toolbox]))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; configuration variable ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; *!40101 SET @saved_cs_client     = @@character_set_client */;
-;; /*!40101 SET character_set_client = utf8 */;
-;; CREATE TABLE IF NOT EXISTS `user` (
-;;   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-;;   `login` varchar(100) NOT NULL,
-;;   `password` varchar(255) NOT NULL,
-;;   `first_name` varchar(100) NOT NULL,
-;;   `last_name` varchar(100) NOT NULL,
-;;   `id_permission` bigint(20) unsigned NOT NULL,
-;;   PRIMARY KEY (`id`),
-;;   KEY `user_FK` (`id_permission`),
-;;   CONSTRAINT `user_FK` FOREIGN KEY (`id_permission`) REFERENCES `permission` (`id`) ON UPDATE CASCADE
-;; ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-;; /*!40101 SET character_set_client = @saved_cs_client */;
+(def *value-column-default-type* "default data type for key-value-table column 'value'" "TEXT")
+(def *key-column-default-type* "default data type for key-value-table column 'key'" "varchar(100)")
+(def *available-mariadb-engine-list* "set of available engines for key-value tables" ["MEMORY",
+                                                                                      "InnoDB",
+                                                                                      "CSV"])
 
 
-;; (toolbox/where)
+(defn table-column
+  ([col-name col-definition] (format "`%s` %s" col-name col-definition))
+  ([col-name col-type col-definition] (format "`%s` %s %s" col-name col-type col-definition)))
+
+(defn create-pair-table
+  ([table-name]
+   (create-pair-table table-name *key-column-default-type* *value-column-default-type*))
+  ([table-name value-type]
+   (create-pair-table table-name *key-column-default-type* value-type))
+  ([table-name key-type value-type]
+   (let [columns [(table-column "id" "bigint(20) unsigned NOT NULL AUTO_INCREMENT" )
+                  (table-column "key" (format "%s NOT NULL" key-type))
+                  (table-column "value" (format "%s DEFAULT NULL" value-type))
+                  "PRIMARY KEY (`id`)"]]
+     (binding [toolbox/*where-border* true]
+       (format "CREATE TABLE IF NOT EXIST `%s` %s" table-name 
+               (toolbox/into-border (string/join ", " columns)))))))
+
+(defn create-table [table-name & {:keys [engine key-type value-type]
+                                  :or {key-type *key-column-default-type*
+                                       value-type *value-column-default-type*} }]
+  (format "%s %s" (create-pair-table table-name key-type value-type)
+          (format "ENGINE=%s DEFAULT CHARSET=utf8;"
+                  (if (some #(= % engine) *available-mariadb-engine-list*)
+                    engine "InnoDB"))))
+
+;; (create-table "suka" :key-type "VARCHAR(20)" :engine "MEMORY")
+
 
 

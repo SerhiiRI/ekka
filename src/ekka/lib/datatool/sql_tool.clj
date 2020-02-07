@@ -161,7 +161,7 @@
 
 (defmacro where-procedure-parser [where-clause]
   (cond (nil? where-clause) `(str "null")
-        (symbol? where-clause) `(format "%s" (str '~where-clause))
+        (symbol? where-clause) `(format "%s" (eval ~where-clause))
         (string? where-clause) `(format "\"%s\"" ~where-clause)
         (keyword? where-clause) `(str (symbol ~where-clause))
         (seqable? where-clause) (let [function (first where-clause) args (rest where-clause)]
@@ -234,7 +234,7 @@
 (defn where-string [current-string sql-dictionary table-name]
   (str current-string
        (eval 
-        (if-let [key-where (get sql-dictionary :where)]
+        (if-let [key-where (list `~(get sql-dictionary :where))]
           (do (println key-where)
             (cond (string? key-where) `(str " WHERE " ~key-where)
                   (map? key-where) (if (empty? (get sql-dictionary :join-on))
@@ -245,6 +245,18 @@
                                                                                     (pair-where-pattern k v ~table-name)))
                                                                                (seq ~key-where)))))
                   (seqable? key-where) `(str " WHERE " (where-procedure-parser ~key-where))))))))
+
+;; (defmacro bliat [key]
+;;   (let [x `'{:where (= :costam ~key)}]
+;;    `(where-string "" ~x "table")))
+
+;; (select :suka
+;;         :where (= :costam "dsaf"))
+
+;; (let [sql-dictionary '{:where (= :costam "dsaf")}]
+;;   (get `~sql-dictionary :where))
+
+;; (bliat "costfdaam")
 
 ;; (where-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
 ;;                                             :suka 2
@@ -358,6 +370,21 @@
             ~@(for [F list-of-rules]
                 `(~F ~dictionary-symb ~table-name-symb)))))))
 
+
+;; (identity '(= 1 2))
+;; (defmacro bliat [key]
+;;   `(select :suka
+;;            :where (= :costam ~key)))
+
+;; (defmacro bliat [key]
+;;   `(where-string "" '{:where '(= :costam ~key)} "table"))
+
+;; (select :suka
+;;         :where (= :costam "dsaf"))
+
+;; (let [sql-dictionary '{:where (= :costam "dsaf")}]
+;;   (get `~sql-dictionary :where))
+;; (bliat "costfdaam")
 
 ;; (select :user_table
 ;;         :left-join {:METADATA :id_metadata} 

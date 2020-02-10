@@ -1,7 +1,9 @@
 (ns ekka.lib.datatool.key-value-tool
   (:require
    [clojure.string :as string]
-   [ekka.lib.datatool.sql-tool :as toolbox]))
+   ;; [ekka.lib.datatool.sql-tool :as toolbox :refer [where-string]]
+   [ekka.lib.datatool.sql-tool :as toolbox :include-macros true
+    :refer [where-string]]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -41,7 +43,26 @@
                   (if (some #(= % engine) *available-mariadb-engine-list*)
                     engine "InnoDB"))))
 
-;; (create-table "suka" :key-type "VARCHAR(20)" :engine "MEMORY")
+;;; to test 
+(create-table "suka" :key-type "VARCHAR(20)" :engine "MEMORY")
+(create-table "suka")
+
+
+(defmacro get-key [key]
+  `(toolbox/select :suka
+                   :where `(= :key ~key)))
+
+(get-key "suak")
+
+
+
+
+(defmacro suka [k]
+  `(toolbox/select :suka
+                   :where (= :key ~k)))
+
+(suka "123")
+
 
 
 

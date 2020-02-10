@@ -131,17 +131,24 @@
         rule-keyword (keyword (string/join "-"(take rule-lenght rule-array)))
         rule-string (string/join " " (map string/upper-case (take rule-lenght rule-array)))]
     `(defmacro ~rule-name [~'current-string ~'joins-form ~'table-name]
-       (if-let [join-function# (get-function-by-join-type ~'joins-form)]
-         (if (and (seqable? ~'joins-form) (not (string? ~'joins-form)))
-           `(str ~~'current-string " " (string/join " " (map (fn [~'s#] (str ~~rule-string " " (~join-function# (name ~~'table-name) ~'s#))) ~~'joins-form)))
-           `(str ~~'current-string " " ~~rule-string " " (~join-function# (name ~~'table-name) ~~'joins-form)))))))
+       (if-not (symbol? ~'joins-form)
+         (if-let [join-function# (get-function-by-join-type ~'joins-form)]
+           (if (and (seqable? ~'joins-form) (not (string? ~'joins-form)))
+             `(str ~~'current-string " " (string/join " " (map (fn [~'s#] (str ~~rule-string " " (~join-function# (name ~~'table-name) ~'s#))) ~~'joins-form)))
+             `(str ~~'current-string " " ~~rule-string " " (~join-function# (name ~~'table-name) ~~'joins-form))))
+         `(if-let [~'join-function# (get-function-by-join-type ~~'joins-form)]
+            (if (and (seqable? ~~'joins-form) (not (string? ~~'joins-form)))
+              (str ~~'current-string " " (string/join " " (map (fn [~'s#] (str ~~rule-string " " (~'join-function# (name ~~'table-name) ~'s#))) ~~'joins-form)))
+              (str ~~'current-string " " ~~rule-string " " (~'join-function# (name ~~'table-name) ~~'joins-form))))))))
 
-;; (defsqljoinrule* left-join-string)
+;; (define-joinrule left-join-string)
 
-;; (left-join-string "12" [:SUKA suka] "mytable")
+;; (let [suka "dukra"]
+;;   (left-join-string "12" [:SUKA :BLIAT] "mytable"))
 ;; (left-join-string "12" ["SUKA ON mytable.id_suka = SUKA.id "] "mytable")
 ;; (left-join-string "SELECT" :T2 "T1")
-
+;; (let [s [:ONE :TWO]]
+;;   (left-join-string "12" s "mytable"))
 
 ;; (defsqljoinrule* inner-join-string)
 ;; DEPRECATED
@@ -169,6 +176,11 @@
 (define-joinrule outer-right-join-string)
 (define-joinrule outer-left-join-string)
 
+(let [oljf {:CREDENTIAL :is_user_metadata}]
+  (outer-left-join-string "SELECT * FROM user" oljf "user"))
+
+ 
+(outer-left-join-string "SELECT * FROM user" {:CREDENTIAL :is_user_metadata} "user")
 
 ;; (outer-left-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
 ;;                                                  :suka 2
@@ -238,11 +250,10 @@
 
 
 (defmacro column-string [current-string col-vec table-name]
-  `(str ~current-string " " (string/join ", " (map (comp str symbol) ~col-vec))))
+  `(str ~current-string " " (string/join ", " (map (comp str symbol) ~col-vec)) " FROM " (name ~table-name)))
 
-(defmacro empty-select-string [current-string _TMP01 _TMP02]
-  `(str ~current-string " *"))
-
+(defmacro empty-select-string [current-string _ table-name]
+  `(str ~current-string " * FROM " (name ~table-name)))
 
 ;; (column-string "SELECT" {:where {:bliat "slia" :suka 2 :what? true}
 ;;                          :column [:bliat :suka]
@@ -385,16 +396,18 @@
 ;;         (seqable? where-block) `(str ~s " WHERE " (where-procedure-parser ~where-block))))
 
 (defmacro where-string [s where-block table-name]
-  (cond (string? where-block) `(str ~s " WHERE " ~where-block)
-        (map? where-block) `(str ~s " WHERE " (string/join " AND " (map #(apply pair-where-pattern %) (seq ~where-block))))
-        (seqable? where-block) `(str ~s " WHERE " (where-procedure-parser ~where-block))))
+  (if (symbol? where-block)
+    `(cond (string? ~where-block) (str ~s " WHERE " ~where-block)
+           (map? ~where-block) (str ~s " WHERE " (string/join " AND " (map #(apply pair-where-pattern %) ~where-block)))
+           (seqable? ~where-block) (str ~s " WHERE " (where-procedure-parser ~where-block)))
+    (cond (string? where-block) `(str ~s " WHERE " ~where-block)
+          (map? where-block) `(str ~s " WHERE " (string/join " AND " (map #(apply pair-where-pattern %) ~where-block)))
+          (seqable? where-block) `(str ~s " WHERE " (where-procedure-parser ~where-block)))))
 
+;; (where-string "" {:login "admin"} "table")
 
-;; (let [k 1]
-;;   (where-string "" {:login "admin"} "table"))
-
-;; (where-string "" {:login.com "admin"
-;;                   :hcuj 123} "table")
+;; (let [ll {:login.com "admin" :hcuj 123}]
+;;   (where-string "" ll "table"))
 
 ;; (let [k [1 2 3]]
 ;;   (where-procedure-parser [1 2 3 k]))
@@ -477,31 +490,40 @@
 ;;                      ))))))
 
 (defmacro select [table-name & {:as args}]
-
   (let [RULE-GENERATOR (comp supply-other-rule create-rule-pipeline)
         list-of-rules (RULE-GENERATOR (keys args) *accepted-select-rules*)]
     `(eval (-> "SELECT"
                ~@(for [[k F] list-of-rules]
                    `(~F ~(k args) ~table-name))))))
 
-;; (select :suka
-;;         :left-join {:METADATA :id_metadata} 
-;;         :inner-join :TEMPORARY
-;;         :where (= :key 123))
+(let [x 123]
+    (select :suka
+         :left-join {:METADATA :id_metadata} 
+         :inner-join :TEMPORARY
+         :where (= :key x)))
 
-;; (select :user_table
-;;         :left-join {:METADATA :id_metadata} 
-;;         :inner-join {:CREDENTIAL :id_credential}
-;;         :column [:name :dla_mamusi :CREDENTAIL.login]
-;;         ;; :where (= :key 123)
-;;         :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-;;                 :CREDENTAIL.password "Aleksandr_Bog69"
-;;                 :name "Aleksandr"
-;;                 :dla_mamusi "Olek"
-;;                 :METADATA.merried false})
+(let [columns [:name :dla_mamusi]
+      tbl :user_table
+      passwd "ALEKSANDR_BOG69"
+      where-clouse {:one "one" :two 2 :three true}
+      lf {:METADATA :id_metadata}]
+    (select tbl
+            :left-join lf
+            :inner-join {:CREDENTIAL :id_credential}
+            ;; :column [:name :dla_mamusi :CREDENTAIL.login]
+            :column columns
+            :where where-clouse
+            ;; :where (= :key 123)
+            ;; :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+            ;;         ;; :CREDENTAIL.password "Aleksandr_Bog69"
+            ;;         :CREDENTIAL.password passwd
+            ;;         :name "Aleksandr"
+            ;;         :dla_mamusi "Olek"
+            ;;         :METADATA.merried false}
+            ))
 
 
-;; (select :user_table)
+(select :user_table)
 
 ;; (select :user_table
 ;;         :left-join {:METADATA :id_metadata} 

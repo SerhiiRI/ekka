@@ -354,6 +354,7 @@
                     (eval `(where-procedure-parser ~field-2))]))
 
 
+
 ;; DEPRECATED
 ;; (defn where-string [current-string sql-dictionary table-name]
 ;;   (str current-string
@@ -398,6 +399,20 @@
 ;; (let [k [1 2 3]]
 ;;   (where-procedure-parser [1 2 3 k]))
 
+
+
+
+;; (defmacro bliat [key]
+;;   (let [x `'{:where (= :costam ~key)}]
+;;    `(where-string "" ~x "table")))
+
+;; (select :suka
+;;         :where (= :costam "dsaf"))
+
+;; (let [sql-dictionary '{:where (= :costam "dsaf")}]
+;;   (get `~sql-dictionary :where))
+
+;; (bliat "costfdaam")
 
 ;; (where-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
 ;;                                             :suka 2
@@ -462,27 +477,29 @@
 ;;                      ))))))
 
 (defmacro select [table-name & {:as args}]
+
   (let [RULE-GENERATOR (comp supply-other-rule create-rule-pipeline)
         list-of-rules (RULE-GENERATOR (keys args) *accepted-select-rules*)]
     `(eval (-> "SELECT"
                ~@(for [[k F] list-of-rules]
                    `(~F ~(k args) ~table-name))))))
 
-(select :suka
-        :left-join {:METADATA :id_metadata} 
-        :inner-join :TEMPORARY
-        :where (= :key 123))
+;; (select :suka
+;;         :left-join {:METADATA :id_metadata} 
+;;         :inner-join :TEMPORARY
+;;         :where (= :key 123))
 
-(select :user_table
-        :left-join {:METADATA :id_metadata} 
-        :inner-join {:CREDENTIAL :id_credential}
-        :column [:name :dla_mamusi :CREDENTAIL.login]
-        ;; :where (= :key 123)
-        :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-                :CREDENTAIL.password "Aleksandr_Bog69"
-                :name "Aleksandr"
-                :dla_mamusi "Olek"
-                :METADATA.merried false})
+;; (select :user_table
+;;         :left-join {:METADATA :id_metadata} 
+;;         :inner-join {:CREDENTIAL :id_credential}
+;;         :column [:name :dla_mamusi :CREDENTAIL.login]
+;;         ;; :where (= :key 123)
+;;         :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;                 :CREDENTAIL.password "Aleksandr_Bog69"
+;;                 :name "Aleksandr"
+;;                 :dla_mamusi "Olek"
+;;                 :METADATA.merried false})
+
 
 ;; (select :user_table)
 

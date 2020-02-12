@@ -5,7 +5,7 @@
 
 ;;; PARSER RULES 
 (def ^:dynamic *accepted-select-rules* [:column :inner-join :right-join :left-join :outer-left-join :outer-right-join :where])
-(def ^:dynamic *accepted-udpate-rules* [:update-table :set :where])
+(def ^:dynamic *accepted-update-rules* [:update-table :set :where])
 (def ^:dynamic *accepted-insert-rules* [:values :set])
 (def ^:dynamic *accepted-delete-rules* [:where])
 (def ^:dynamic *where-border* false)
@@ -172,15 +172,14 @@
 (define-joinrule inner-join-string)
 (define-joinrule left-join-string)
 (define-joinrule right-join-string)
-;;; non-standart rule
 (define-joinrule outer-right-join-string)
 (define-joinrule outer-left-join-string)
 
-(let [oljf {:CREDENTIAL :is_user_metadata}]
-  (outer-left-join-string "SELECT * FROM user" oljf "user"))
+;; (let [oljf {:CREDENTIAL :is_user_metadata}]
+;;   (outer-left-join-string "SELECT * FROM user" oljf "user"))
 
  
-(outer-left-join-string "SELECT * FROM user" {:CREDENTIAL :is_user_metadata} "user")
+;; (outer-left-join-string "SELECT * FROM user" {:CREDENTIAL :is_user_metadata} "user")
 
 ;; (outer-left-join-string "SELECT * FROM user" {:where {:CREDENTAIL.login "anatoli"
 ;;                                                  :suka 2
@@ -469,7 +468,7 @@
 
 ;; (create-rule-pipeline [:where :column] *accepted-select-rules*)
 
-(defn supply-other-rule [key-pipeline]
+(defn select-empty-table-pipeline-applier [key-pipeline]
   (if (some #(= :column (first %1)) key-pipeline)
     key-pipeline
     (vec (concat [[:column 'empty-select-string]] key-pipeline))))
@@ -489,41 +488,41 @@
 ;;                      `(~F ~args ~table-name)
 ;;                      ))))))
 
-(defmacro select [table-name & {:as args}]
-  (let [RULE-GENERATOR (comp supply-other-rule create-rule-pipeline)
-        list-of-rules (RULE-GENERATOR (keys args) *accepted-select-rules*)]
-    `(eval (-> "SELECT"
-               ~@(for [[k F] list-of-rules]
-                   `(~F ~(k args) ~table-name))))))
+;; (defmacro select [table-name & {:as args}]
+;;   (let [RULE-GENERATOR (comp supply-other-rule create-rule-pipeline)
+;;         list-of-rules (RULE-GENERATOR (keys args) *accepted-select-rules*)]
+;;     `(eval (-> "SELECT"
+;;                ~@(for [[k F] list-of-rules]
+;;                    `(~F ~(k args) ~table-name))))))
 
-(let [x 123]
-    (select :suka
-         :left-join {:METADATA :id_metadata} 
-         :inner-join :TEMPORARY
-         :where (= :key x)))
+;; (let [x 123]
+;;     (select :suka
+;;             :left-join {:METADATA :id_metadata} 
+;;             :inner-join :TEMPORARY
+;;             :where (= :key x)))
 
-(let [columns [:name :dla_mamusi]
-      tbl :user_table
-      passwd "ALEKSANDR_BOG69"
-      where-clouse {:one "one" :two 2 :three true}
-      lf {:METADATA :id_metadata}]
-    (select tbl
-            :left-join lf
-            :inner-join {:CREDENTIAL :id_credential}
-            ;; :column [:name :dla_mamusi :CREDENTAIL.login]
-            :column columns
-            :where where-clouse
-            ;; :where (= :key 123)
-            ;; :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
-            ;;         ;; :CREDENTAIL.password "Aleksandr_Bog69"
-            ;;         :CREDENTIAL.password passwd
-            ;;         :name "Aleksandr"
-            ;;         :dla_mamusi "Olek"
-            ;;         :METADATA.merried false}
-            ))
+;; (let [columns [:name :dla_mamusi]
+;;       tbl :user_table
+;;       passwd "ALEKSANDR_BOG69"
+;;       where-clouse {:one "one" :two 2 :three true}
+;;       lf {:METADATA :id_metadata}]
+;;     (select tbl
+;;             :left-join lf
+;;             :inner-join {:CREDENTIAL :id_credential}
+;;             ;; :column [:name :dla_mamusi :CREDENTAIL.login]
+;;             :column columns
+;;             :where where-clouse
+;;             ;; :where (= :key 123)
+;;             ;; :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;             ;;         ;; :CREDENTAIL.password "Aleksandr_Bog69"
+;;             ;;         :CREDENTIAL.password passwd
+;;             ;;         :name "Aleksandr"
+;;             ;;         :dla_mamusi "Olek"
+;;             ;;         :METADATA.merried false}
+;;             ))
 
 
-(select :user_table)
+;; (select :user_table)
 
 ;; (select :user_table
 ;;         :left-join {:METADATA :id_metadata} 
@@ -578,70 +577,101 @@
 ;;; UPDATE ;;;
 ;;;;;;;;;;;;;;
 
-(defn set-string [current-string update-map tabel-name]
-  (str current-string
-       (if-let [set-map (:set update-map)]
-         (when-not (empty? set-map) (str " "
-                                         (symbol tabel-name)
-                                         " SET "
-                                         (string/join ", " (map #(apply pair-where-pattern %) (seq set-map))))))))
+(defmacro set-string [current-string update-map tabel-name]
+  `(str ~current-string " "
+        (symbol ~tabel-name)
+        " SET "
+        (string/join ", " (map #(apply pair-where-pattern %)  ~update-map))))
 
-(defn update-table-string [current-string map table-name]
-  (str current-string " " table-name))
+(defmacro update-table-string [current-string map table-name]
+  `(str ~current-string "" ~table-name))
 
-(defn low-priority-string [current-string map table-name]
-  (str current-string " LOW_PRIORITY"))
+(defmacro low-priority-string [current-string map table-name]
+  `(str ~current-string " LOW_PRIORITY"))
 
-(defmacro update-sql [table-name & {:as args}]
-  (let [table-name-symb (gensym 'table-name)
-        dictionary-symb (gensym 'args)
-        list-of-rules (create-rule-pipeline (keys args) *accepted-insert-rules*)]
-    `(let [~table-name-symb (symbol ~table-name)
-           ~dictionary-symb '~args]
-       (eval (-> "UPDATE"
-                 ~@(for [F list-of-rules]
-                     `(~F ~dictionary-symb ~table-name-symb)))))))
+;; (defmacro update [table-name & {:as args}]
+;;   (let [table-name-symb (gensym 'table-name)
+;;         dictionary-symb (gensym 'args)
+;;         list-of-rules (create-rule-pipeline (keys args) *accepted-insert-rules*)]
+;;     `(let [~table-name-symb (symbol ~table-name)
+;;            ~dictionary-symb '~args]
+;;        (eval (-> "UPDATE"
+;;                  ~@(for [F list-of-rules]
+;;                      `(~F ~dictionary-symb ~table-name-symb)))))))
 
-;; (update-sql :user
-;;             :set {:login "aleks"
-;;                   :password "XXXpussy_destroyer69"}
-;;             :where {:id 2 :bliat "costam"})
+
+;;;;;;;;;
+;; OLD ;;
+;;;;;;;;;
+
+;; (defmacro update [table-name & {:as args}]
+;;   (let [RULE-GENERATOR #'create-rule-pipeline
+;;         list-of-rules (RULE-GENERATOR (keys args) *accepted-udpate-rules*)]
+;;     `(eval (-> "UPDATE"
+;;                ~@(for [[k F] list-of-rules]
+;;                    `(~F ~(k args) ~table-name))))))
+
+;; (update :user
+;;         :set {:login "aleks"
+;;               :password "XXXpussy_destroyer69"}
+;;         :where {:id 2 :bliat "costam"})
+
+;; (let [sset {:login "aleks"
+;;             :password "XXXpussy_destroyer69"}
+;;       where {:id 2 :bliat "costam"}]
+;;   (update :user
+;;           :set sset
+;;           :where where))
 
 
 ;;;;;;;;;;;;;;
 ;;; INSERT ;;;
 ;;;;;;;;;;;;;;
 
-(defn values-string [current-string key-map table-name]
-  (str current-string " " table-name
-       (if-let [values (:values key-map)]
-         (let [into-sql-values
-               (fn [some-list]
-                 (str "(" (string/join ", " (map #(eval `(where-procedure-parser ~%)) some-list)) ")"))
-               into-sql-map
-               (fn [some-list]
-                 (str "(" (string/join ", " (map #(eval `(where-procedure-parser ~%)) (vals some-list))) ")"))]
-           (cond (map? values) (str " SET "(string/join ", " (map #(apply pair-where-pattern %) values)))
-                 (and (seqable? values) (map? (first values))) (str " VALUES " (string/join ", " (map into-sql-map values)))
-                 (and (seqable? values) (seqable? (first values))) (str " VALUES "(string/join ", " (map into-sql-values values)))
-                 (seqable? values) (str " VALUES " (into-sql-values values))
-                 :else nil)))))
+(defmacro values-string [current-string values table-name]
+  (let [into-sql-values (fn [some-list]
+                          (str "(" (string/join ", " (map #(eval `(where-procedure-parser ~%)) some-list)) ")"))
+        into-sql-map (fn [some-list]
+                       (str "(" (string/join ", " (map #(eval `(where-procedure-parser ~%)) (vals some-list))) ")"))]
+    `(str ~current-string " " ~(name table-name)
+          (cond (map? ~values)
+                (str " SET "      (string/join ", " (map #(apply pair-where-pattern %) ~values)))
 
-(defmacro insert [table-name & {:as args}]
-  (let [table-name-symb (gensym 'table-name)
-        dictionary-symb (gensym 'args)
-        list-of-rules (create-rule-pipeline (keys args) *accepted-insert-rules*)]
-    `(let [~table-name-symb (symbol ~table-name)
-           ~dictionary-symb '~args]
-       (eval (-> "INSERT INTO"
-                 ~@(for [F list-of-rules]
-                     `(~F ~dictionary-symb ~table-name-symb)))))))
+                (and (seqable? ~values) (map? (first ~values)))
+                (str " VALUES "   (string/join ", " (map ~into-sql-map ~values)))
 
+                (and (seqable? ~values) (seqable? (first ~values)))
+                (str " VALUES "   (string/join ", " (map ~into-sql-values ~values)))
+
+                (seqable? ~values)
+                (str " VALUES "   (~into-sql-values ~values))
+
+                :else nil))))
+
+;; (values-string "" {:a 1 :b 2 :c 3} "mitinko")
+;; (values-string "" [{:a 1 :b 2 :c 3} {:a 4 :b 5 :c 6}] "mitinko")
+;; (values-string "" [[1 1 1] [2 2 2]] "mitinko")
+;; (values-string "" [1 1 1] "mitinko")
+
+;; (let [v1 {:a 1 :b 2 :c 3}
+;;       v2 [{:a 1 :b 2 :c 3} {:a 4 :b 5 :c 6}]
+;;       v3 [[1 1 1] [2 2 2]]
+;;       v4 [1 1 1]]
+;;   (values-string "" v1 "mitinko"))
+
+;;;;;;;;;
+;; OLD ;;
+;;;;;;;;;
+
+;; (defmacro insert [table-name & {:as args}]
+;;   (let [RULE-GENERATOR #'create-rule-pipeline
+;;         list-of-rules (RULE-GENERATOR (keys args) *accepted-insert-rules*)]
+;;     `(eval (-> "INSERT INTO"
+;;                ~@(for [[k F] list-of-rules]
+;;                    `(~F ~(k args) ~table-name))))))
 
 ;; (insert :user
-;;         :set {:login "aleks"
-;;               :password "XXXpussy_destroyer69"}
-;;         :where {:id 2 :bliat "costam"})
+;;         :values {:id 1 :login "vasia" :password "123" :age 20})
 
 ;; (insert :user
 ;;         :values [[1, "vasia", "123", 20] [2, "vasia", "123", 20]])
@@ -655,25 +685,42 @@
 ;;; DELETE ;;;
 ;;;;;;;;;;;;;;
 
-(defmacro delete [table-name & {:as args}]
-  (let [table-name-symb (gensym 'table-name)
-        dictionary-symb (gensym 'args)
-        list-of-rules (create-rule-pipeline (keys args) *accepted-delete-rules*)]
-    `(let [~table-name-symb (symbol ~table-name)
-           ~dictionary-symb '~args]
-       (eval (-> (str "DELETE FROM " ~table-name-symb)
-                 ~@(for [F list-of-rules]
-                     `(~F ~dictionary-symb ~table-name-symb)))))))
+;; (defmacro delete [table-name & {:as args}]
+;;   (let [RULE-GENERATOR #'create-rule-pipeline
+;;         list-of-rules (RULE-GENERATOR (keys args) *accepted-delete-rules*)]
+;;     `(eval (-> "DELETE"
+;;                ~@(for [[k F] list-of-rules]
+;;                    `(~F ~(k args) ~table-name))))))
+
+(defmacro define-sql-operation [operation-name accepted-rules pipeline-function]
+  `(defmacro ~operation-name [~'table-name & {:as ~'args}]
+     (let [list-of-rules# (~pipeline-function (keys ~'args) ~accepted-rules)]
+       `(eval (-> ~~(string/upper-case (name operation-name))
+                  ~@(for [[~'k ~'F] list-of-rules#]
+                      `(~~'F ~~'(k args) ~~'table-name)))))))
+
+(define-sql-operation insert *accepted-insert-rules* create-rule-pipeline)
+(define-sql-operation delete *accepted-delete-rules* create-rule-pipeline)
+(define-sql-operation update *accepted-update-rules* create-rule-pipeline)
+(define-sql-operation select *accepted-select-rules* (comp select-empty-table-pipeline-applier create-rule-pipeline))
 
 
-;; (delete :user
-;;         :where {:id 12})
+;; (select :user_table)
+
+;; (select :user_table
+;;         :left-join {:METADATA :id_metadata} 
+;;         :inner-join {:CREDENTIAL :id_credential}
+;;         :column [:name :dla_mamusi :CREDENTAIL.login]
+;;         :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;                 :CREDENTAIL.password "Aleksandr_Bog69"
+;;                 :name "Aleksandr"
+;;                 :dla_mamusi "Olek"
+;;                 :METADATA.merried false})
 
 
-
-
-
-
+;; (let [w1 {:id 12}]
+;;     (delete :user
+;;             :where w1))
 
 
 ;; (let [a {:left-join {:METADATA :id_metadata} 

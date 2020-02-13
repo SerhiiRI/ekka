@@ -282,63 +282,49 @@
     (format "%s ON %s.id=%s.%s" table table main-table join-column)))
 
 (defmacro formater [k]
-  (let [[sql-type n & _] (string/split (string/lower-case (name k)) #"-")]
-    (condp = sql-type
-      "bigint" `~(if-not n "BIGINT"
-                   (format (condp = n
-                             "signed" "BIGINT %s"
-                             "unsigned" "BIGINT %s"
-                             "zerofill" "BIGINT %s"
-                             "BIGINT(%s)") (string/upper-case n)))
-      "varchar" `~(format "varchar(%s)" n)
-      "nnull" "NOT NULL"
-      "null" "NULL"
-      "auto_increment" "AUTO_INCREMENT"
-      "autoincrement" "AUTO_INCREMENT"
-      "auto" "AUTO_INCREMENT"
-      "date" "DATE"
-      "datetime" "DATETIME"
-      "bool" "BOOL"
-      "boolean" "BOOL"
-      "blob" "BLOB"
-      "json" "JSON")))
+  (let [[sql-type n & _] (string/split (string/lower-case (name k)) #"-")
+        is? (fn [col x] (if (string? col) (= x col)
+                            (some #(= % x) col)))
+        numeral-types (fn [tt nn] (if-not nn (string/upper-case tt)
+                                          (format (if (is? ["signed" "unsigned" "zerofill"] nn) "%s %s" "%s(%s)")
+                                                  (string/upper-case tt)
+                                                  (string/replace (string/upper-case nn) "." "," ))))
+        charchain-types (fn [tt nn] (if-not nn (string/upper-case tt)
+                                            (format "%s(%s)" (string/upper-case tt) nn)))]
+    (condp is? sql-type
+      "null"       "NULL"
+      "nnull"      "NOT NULL"
+      "date"       "DATE"
+      "datetime"   "DATETIME"
+      "time"       "TIME"
+      "blob"       "BLOB"
+      "json"       "JSON"
+      
+      ["tinyint" "smallint"
+       "mediumint" "int"
+       "integer" "bigint"
+       "double" "float"
+       "real"] `~(numeral-types sql-type n)
+      
+      ["bool" "boolean"] "TINYINT(1)"
+
+      ["tinyblob" "blob" "mediumblob"  "longblob" 
+       "tinytext" "text" "mediumtext" "longtext"
+       "json"] (string/upper-case sql-type)
+
+      "varchar" `~(charchain-types sql-type n)
+
+      ["auto_increment" "autoincrement" "auto"] "AUTO_INCREMENT"
+
+      "")))
 
 
 
-
-TINYINT
-BOOLEAN
-Synonym for TINYINT(1)
-SMALLINT
-Small integer from -32768 to 32767 signed
-MEDIUMINT
-Medium integer from -8388608 to 8388607 signed
-INT
-Integer from -2147483648 to 2147483647 signed
-INTEGER
-Synonym for INT
-BIGINT
-Large integer
-2	
-DECIMAL
-A packed "exact" fixed-point number.
-DEC, NUMERIC, FIXED
-Synonyms for DECIMAL
-FLOAT
-Single-precision floating-point number
-DOUBLE
-Normal-size (double-precision) floating-point number
-DOUBLE PRECISION
-REAL and DOUBLE PRECISION are synonyms for DOUBLE.
-BIT
-
-
-(for [k [:bigint-20 :null :auto_increment]]
-  (condp = (first (string/split (string/lower-case (name k)) #"-"))
-    "bigint" (formater k)
-    "cah" (formater k)))
 
 columns [{:id "bigint(20) NOT NULL AUTO_INCREMENT" }]
+columns [{:id [:bigint-20 "NOT NULL"]}]
+columns [{:id [:bigint-20 :nnull :auto]}]
+
 ;; CREATE TABLE IF NOT EXISTS `user` (
 ;;   `id` bigint(20) NOT NULL AUTO_INCREMENT,
 ;;   `login` varchar(100) NOT NULL,

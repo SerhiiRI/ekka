@@ -11,9 +11,7 @@
 
 (def *value-column-default-type* "default data type for key-value-table column 'value'" "TEXT")
 (def *key-column-default-type* "default data type for key-value-table column 'key'" "varchar(100)")
-(def *available-mariadb-engine-list* "set of available engines for key-value tables" ["MEMORY",
-                                                                                      "InnoDB",
-                                                                                      "CSV"])
+(def *available-mariadb-engine-list* "set of available engines for key-value tables" ["MEMORY", "InnoDB", "CSV"])
 
 
 (defn table-column

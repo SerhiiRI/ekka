@@ -13,6 +13,7 @@
 (def ^:dynamic *where-border* false)
 
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;;; String helperts ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -245,12 +246,25 @@
 ;;; delete preprocessor ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro define-sql-operation [operation-name accepted-rules pipeline-function]
-  `(defmacro ~operation-name [~'table-name & {:as ~'args}]
+(defmacro define-sql-operation
+  ([operation-name operation-string accepted-rules pipeline-function]
+)
+  ([operation-name accepted-rules pipeline-function]
+   `(defmacro ~operation-name [~'table-name & {:as ~'args}]
      (let [list-of-rules# (~pipeline-function (keys ~'args) ~accepted-rules)]
        `(eval (-> ~~(string/upper-case (name operation-name))
                   ~@(for [[~'k ~'F] list-of-rules#]
-                      `(~~'F ~~'(k args) ~~'table-name)))))))
+                      `(~~'F ~~'(k args) ~~'table-name))))))))
+
+(defmacro define-sql-operation
+  ([operation-name accepted-rules pipeline-function]
+   `(define-sql-operation ~operation-name ~(string/upper-case (name operation-name)) ~accepted-rules ~pipeline-function))
+  ([operation-name operation-string accepted-rules pipeline-function]
+   `(defmacro ~operation-name [~'table-name & {:as ~'args}]
+     (let [list-of-rules# (~pipeline-function (keys ~'args) ~accepted-rules)]
+       `(eval (-> ~~operation-string
+                  ~@(for [[~'k ~'F] list-of-rules#]
+                      `(~~'F ~~'(k args) ~~'table-name))))))))
 
 
 
@@ -263,12 +277,10 @@
 (define-sql-operation delete *accepted-delete-rules* create-rule-pipeline)
 (define-sql-operation update *accepted-update-rules* create-rule-pipeline)
 (define-sql-operation select *accepted-select-rules* (comp select-empty-table-pipeline-applier create-rule-pipeline))
-
+(define-sql-operation create-table "CREATE TABLE IF NOT EXIST" *accepted-ctable-rules* create-rule-pipeline)
 
 (def ^:dynamic *accepted-ctable-rules* [:columns :foreign-keys :chaset :engine])
 
-(create-table :table
-              :columns)
 
 
 (defn join-map-keyword-string [main-table [k v]]
@@ -281,51 +293,80 @@
                                   (symbol (str "id_" (string/lower-case (symbol joining-table)))))]
     (format "%s ON %s.id=%s.%s" table table main-table join-column)))
 
-(defmacro formater [k]
-  (let [[sql-type n & _] (string/split (string/lower-case (name k)) #"-")
-        is? (fn [col x] (if (string? col) (= x col)
+(defn formater [k]
+  (if (string? k) k
+   (let [[sql-type n & _] (string/split (string/lower-case (name k)) #"-")
+         is? (fn [col x] (if (string? col) (= x col)
                             (some #(= % x) col)))
-        numeral-types (fn [tt nn] (if-not nn (string/upper-case tt)
+         numeral-types (fn [tt nn] (if-not nn (string/upper-case tt)
                                           (format (if (is? ["signed" "unsigned" "zerofill"] nn) "%s %s" "%s(%s)")
                                                   (string/upper-case tt)
                                                   (string/replace (string/upper-case nn) "." "," ))))
-        charchain-types (fn [tt nn] (if-not nn (string/upper-case tt)
+         charchain-types (fn [tt nn] (if-not nn (string/upper-case tt)
                                             (format "%s(%s)" (string/upper-case tt) nn)))]
-    (condp is? sql-type
-      "null"       "NULL"
-      "nnull"      "NOT NULL"
-      "date"       "DATE"
-      "datetime"   "DATETIME"
-      "time"       "TIME"
-      "blob"       "BLOB"
-      "json"       "JSON"
+     (condp is? sql-type
+       "null"       "NULL"
+       "nnull"      "NOT NULL"
+       "date"       "DATE"
+       "datetime"   "DATETIME"
+       "time"       "TIME"
       
-      ["tinyint" "smallint"
-       "mediumint" "int"
-       "integer" "bigint"
-       "double" "float"
-       "real"] `~(numeral-types sql-type n)
+       ["tinyint" "smallint"
+        "mediumint" "int"
+        "integer" "bigint"
+        "double" "float"
+        "real"] (numeral-types sql-type n)
       
-      ["bool" "boolean"] "TINYINT(1)"
+       ["bool" "boolean"] "TINYINT(1)"
 
-      ["tinyblob" "blob" "mediumblob"  "longblob" 
-       "tinytext" "text" "mediumtext" "longtext"
-       "json"] (string/upper-case sql-type)
+       ["tinyblob" "blob" "mediumblob"  "longblob" 
+        "tinytext" "text" "mediumtext" "longtext"
+        "json"] (string/upper-case sql-type)
 
-      "varchar" `~(charchain-types sql-type n)
+       "varchar" (charchain-types sql-type n)
 
-      ["auto_increment" "autoincrement" "auto"] "AUTO_INCREMENT"
+       ["auto_increment" "autoincrement" "auto"] "AUTO_INCREMENT"
 
-      "")))
-
-
+       ""))))
 
 
-columns [{:id "bigint(20) NOT NULL AUTO_INCREMENT" }]
-columns [{:id [:bigint-20 "NOT NULL"]}]
-columns [{:id [:bigint-20 :nnull :auto]}]
+(defn create-column [map-col]
+  (let [[[col-name value]] (seq map-col)]
+     (cond (keyword? value) (format "`%s` %s" (name col-name) (formater value))
+           (string? value) (format "`%s` %s" (name col-name) value)
+           (seqable? value) (format "`%s` %s" (name col-name) (string/join " " (map formater value)))
+           :else "")))
 
-;; CREATE TABLE IF NOT EXISTS `user` (
+;; (defmacro _TMP [map-col]
+;;   {:pre [(map? map-col)]}
+;;   (let [[[col-name value]] (seq map-col)]
+;;     (cond (keyword? value) `~(formater value)
+;;           (string? value) `~(format "`%s` %s" (name col-name) value)
+;;           (seqable? value) `~(format "`%s` %s" (name col-name) (string/join " " (map #'formater value)))
+;;           :else "")))
+
+(create-column {:id "bigint(20) NOT NULL AUTO_INCREMENT"})
+(create-column {:id [:bigint-20 "NOT NULL" :auto]})
+(create-column {:id [:bigint-20 :nnull :auto]})
+(create-column {:id :bigint-290})
+
+
+(defmacro columns-string [current-string column-spec table-name]
+  `(string/join ", " [(create-column {:id [:bigint-20 :nnull :auto]}) 
+                      (let [cls# ~column-spec]
+                        (cond (string? cls#) cls# 
+                              (map? cls#) (create-column cls#)
+                              (vector? cls#) (string/join ", " (map #(create-column %) cls#))
+                              :else nil)) 
+                      "PRIMARY KEY (`id`) "]))
+
+(columns-string "" {:fuck [:bigint-20 "NOT NULL" :auto]} "table")
+(columns-string "" [{:blia [:bigint-20 "NOT NULL" :auto]} {:suka [:varchar-210]}] "table")
+(columns-string "" [{:id :bigint-100} {:suka "TINYTEXT"}] "table")
+(columns-string "" "`id` BIGINT(150) NOT NULL AUTO_INCREMENT" "table")
+
+
+;; create TABLE IF NOT EXISTS `user` (
 ;;   `id` bigint(20) NOT NULL AUTO_INCREMENT,
 ;;   `login` varchar(100) NOT NULL,
 ;;   `password` varchar(255) NOT NULL,
@@ -337,6 +378,43 @@ columns [{:id [:bigint-20 :nnull :auto]}]
 ;;   CONSTRAINT `user_FK` FOREIGN KEY (`id_permission`) REFERENCES `permission` (`id`) ON UPDATE CASCADE
 ;; ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+(constraint-create "table-name" {:id_permission :permission} {:update :cascade :delete :restricted})
+(constraint-create "table-name" {:id_permission :permission})
+
+
+[:restrict :cascade :null :no-action :default]
+
+(defn constraint-create
+  ([table-name tables]
+   (let [[[colm rel-tbl]] (seq tables)
+         [colm rel-tbl] [(name colm) (name rel-tbl)]
+         key-name (gensym table-name)]
+     (str (format "KEY `%s` (`%s`), " key-name colm)
+          (format "CONSTRAINT `%s` (`%s`) REFERENCES `%s` (`id`)" key-name colm rel-tbl))))
+  ([table-name tables update-delete]
+   (let [[[colm rel-tbl]] (seq tables)
+         [colm rel-tbl] [(name colm) (name rel-tbl)]
+         key-name (gensym table-name)
+         {on-update :update on-delete :delete} update-delete
+         on-action #(condp = %2
+                      :cascade (format " ON %s CASCADE " %1)
+                      :restrict (format " ON %s RESTRICT " %1)
+                      :null (format " ON %s SET NULL" %1 )
+                      :no-action (format " ON %s NO ACTION " %1)
+                      :default (format " ON %s SET DEFAULT " %1)
+                      nil)]
+     (str (format "KEY `%s` (`%s`), " key-name colm)
+          (format "CONSTRAINT `%s` (`%s`) REFERENCES `%s` (`id`)" key-name colm rel-tbl)
+          (if on-update (on-action "UPDATE" on-update))
+          (if on-delete (on-action "DELETE" on-delete))))))
+
+(defn generate-keys
+  ([table-name] "PRIMARY KEY (`id`)")
+  ([table-name tables] (string/join "," ["PRIMARY KEY (`id`)"
+                                         ])))
+
+(defmacro constraing-string [current-string column-spec table-name]
+  )
 ;; CREATE TABLE `ekka-test`.NewTable (
 ;; 	id varchar(100) auto_increment NOT NULL,
 ;; 	blait varchar(100) NULL,

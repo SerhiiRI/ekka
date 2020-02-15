@@ -1,7 +1,10 @@
 (ns ekka.lib.ide
   (:use seesaw.core
+        seesaw.dev
         seesaw.mig
         seesaw.chooser
+        seesaw.color
+        seesaw.border
         seesaw.make-widget))
 
 ;; nieco podprawiłem ci funkcje, polecam
@@ -14,64 +17,52 @@
 
 
 (native!)
-(def f (frame :title "Tester" :content "Test działania SeeSaw"))
+(def f (frame :title "Mr. Jarman" 
+              :content (label 
+                        :text "Test aplikacji Mr. Jarman."
+                        :halign :center)
+              :minimum-size [400 :by 300]))
 
 
 (defn display "Display function for opened window" [content]
   (config! f :content content)
   content)
 
+(def .item {:background "#8a4" :size [100 :by 30]})
+; (display (makelabel "YEY" .item))
+(show-options (label))
+
+; STYLES
+(def .bg "#fff")
+(def .fg "#333")
+(def .bg_btn "#eee")
+(def .btn_vsize 25)
+(def .btn_hsize 75)
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; podejście do budowania funkcji generacji buttonów ;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defmacro menu_btn
+  [txt] `(label :text ~txt
+                :background .bg_btn
+                :foreground .fg
+                :size [.btn_hsize :by .btn_vsize]
+                :halign :center
+                :font {:size 12}
+                :border (line-border :right 2 :color .bg)))
 
-(defmacro butt*
-  "Makro podejście"
-  [txt act]
-  `(button :text ~txt
-           :listen [:action (fn [~'e] (~@act))]))
+(let [a  {:background "#333333" }]
+  `(label (~@a)))
 
-; (def b (butt* "Hi" (alert "Jak to może działać?")))
+(def .btn (vector :background "#8ab" :foreground "#ff0000"))
 
-(defn butt
-  "Podejście typowo funkcujne, poprostu wrzuć funkcje którom ma wykorzystywać listener, ogólnei podejście zalecane"
-  [txt one-arg-action]
-  (button :text txt
-          :listen [:action one-arg-action]))
-
-; (def b (butt "Hi" (fn [e] (alert "Jak to może działać?"))))
-
-; (display b)
-; (-> f pack! show!)
+(def app
+  (border-panel :background .bg
+                :center (mig-panel :constraints ["" 
+                                                 "0px[800px, grow, fill]0px"
+                                                 "0px[480px, grow, fill]0px"]
+                                   :border 0
+                                   :items [])))
 
 
-(def mp (mig-panel
-         :constraints ["fill" "center"]
-         :items [[(mig-panel
-                   :constraints ["wrap"]
-                   :items [[(butt "Button 1" (fn [e] (alert "b1")))]
-                           [(butt* "Button 2" (alert "b2"))]])]
-                 ["Option 2"]]))
-
-(display mp)
+; (display (label :text "EEE" :background .bg))
+(display app)
 (-> f pack! show!)
-
-; Macro działające na zasadzie (-> )
-; (defmacro arr
-;   ([last] last)
-;   ([f & param] 
-;     (let [wyraz (first param)
-;           head (first wyraz)
-;           body (rest wyraz)] 
-;       `(arr 
-;         (~head ~f ~@body)
-;         ~@(rest param)))))
-
-
-
-; (pm (arr 1 (+ 2) (+ 3)))
-; (arr 1 (+ 2) (+ 3))
-
-

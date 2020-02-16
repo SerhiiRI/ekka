@@ -8,6 +8,7 @@
         seesaw.graphics
         seesaw.swingx
         seesaw.make-widget))
+(require '[clojure.string :as string])
 
 
 ;; nieco podprawiłem ci funkcje, polecam
@@ -35,6 +36,34 @@
 (def .jarman_light "#908cfa")
 (def .focus "#89cc6c")
 
+(import java.awt.GraphicsEnvironment)
+(import java.awt.Font)
+
+(defn Add_font "Funkcja dodaje czcionkę, lokalizacja czcionki src/ekka/resources/fonts/"
+  [font_name] (.registerFont (. GraphicsEnvironment getLocalGraphicsEnvironment) (java.awt.Font/createFont (java.awt.Font/TRUETYPE_FONT) (clojure.java.io/file (string/join "" ["src/ekka/resources/fonts/" font_name])))))
+
+(defn ShowFonts "Funkcja wyświetla listę dostępnych czcionek, ale nie zwraca ich."
+  [] (map println (. (. GraphicsEnvironment getLocalGraphicsEnvironment) getAvailableFontFamilyNames)))
+
+(defn GetFonts "Funkcja zwraca nazy dostęnych czcionek."
+  [] (map identity (. (. GraphicsEnvironment getLocalGraphicsEnvironment) getAvailableFontFamilyNames)))
+
+(defn Fonts_panel "Funkcja wyświetla okienko z czcionkami w swoim formacie."
+  [& {:keys [txt size] :or {txt "Przykładowy tekst od Mr. Jarmana" size 16}}]
+  (-> (frame :content (scrollable (vertical-panel :items (map (fn [font] (grid-panel
+                                                                          :columns 2
+                                                                          :items [(label :text font 
+                                                                                         :font {:name (str font) :size size}
+                                                                                         :border (empty-border :right 10)
+                                                                                         :halign :right)
+                                                                                  (label :text txt :font {:name (str font) :size 16})])) (GetFonts)))))
+      pack!
+      show!))
+
+; (Fonts_panel :txt "сука блять" :size 20)
+; (Add_font "Cattedrale.ttf")
+; (ShowFonts)
+; (GetFonts)
 
 ; Funkcje skracające ===================================
 
@@ -106,7 +135,6 @@
                          (scaler (.getHeight image))
                          java.awt.Image/SCALE_SMOOTH))))
 
-
 ; Style ================================================
 
 (def .flex_panel (vector :background .bg
@@ -117,7 +145,8 @@
                           :halign :center 
                           :border (line-border :thickness 2 :color .jarman)
                           :background "#fff"
-                          :caret-color "#fff"))
+                          :caret-color "#fff"
+                          :font {:name "Cattedrale-Demo" :style :bold :size 14}))
  
 (def .login_btn (vector :size [150 :by 35]
                         :halign :center
@@ -145,12 +174,14 @@
              [(mig ["wrap 1"
                     "0px[grow, fill, center]0px"
                     "20px[grow, fill]20px[45, fill]5px[45, fill]10px[45, fill]0px"]
-                   [[(label :focusable? true :halign :center :background .bg :icon (image-scale "src/ekka/img/logo.png" 100))]
-                    [(apply text  :listen [:focus-gained (fn [e] (config! e :border (line-border :thickness 2 :color .focus)))
-                                           :focus-lost (fn [e] (config! e :border (line-border :thickness 2 :color .jarman)))] 
-                            .login_input)]
-                    [(apply password :listen [:focus-gained (fn [e] (config! e :border (line-border :thickness 2 :color .focus)))
-                                              :focus-lost (fn [e] (config! e :border (line-border :thickness 2 :color .jarman)))]
+                   [[(label :focusable? true :halign :center :background .bg :icon (image-scale "src/ekka/resources/imgs/logo.png" 100))]
+                    [(apply text :text "User"
+                      :listen [:focus-gained (fn [e] (config! e :border (line-border :thickness 2 :color .focus)))
+                               :focus-lost (fn [e] (config! e :border (line-border :thickness 2 :color .jarman)))]
+                      .login_input)]
+                    [(apply password :text "Password"
+                            :listen [:focus-gained (fn [e] (config! e :border (line-border :thickness 2 :color .focus)))
+                                     :focus-lost (fn [e] (config! e :border (line-border :thickness 2 :color .jarman)))]
                             .login_input)]
                     [(btn "Connect" .login_btn [:focus-gained (fn [e] (config! e :background .jarman_light :border (line-border :thickness 2 :color .jarman_light)))
                                                 :focus-lost (fn [e] (config! e :background .jarman :border (line-border :thickness 2 :color .jarman)))
@@ -167,6 +198,7 @@
 (defn mainFrame
 [left-menu title right-menu content] 
 (frame :undecorated? true
+       :resizable? true
        :content (mig ["wrap 1"
                       "0px[grow, fill]0px"
                       "0px[20, fill]0px[grow, fill]0px"]
@@ -192,7 +224,7 @@
                                                    :foreground .jarman
                                                    :size [100 :by 20]
                                                    .main_title)]) 
-                  (label :background .main_bar) 
+                  (label :background .main_bar :listen [:mouse-clicked (fn [e] ())]) 
                   (flow-panel :background .main_bar
                               :align :right
                               :items [(apply label :listen [:mouse-clicked (fn [e] ())]
@@ -207,4 +239,5 @@
 ; Uruchomienie okna======================================
 
 ; (show-options (label))
+; (show-options (frame))
 ; (show-events (text))

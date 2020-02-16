@@ -238,31 +238,31 @@
 ;;; DEBUG ;;;
 ;;;;;;;;;;;;;
 
-;;; debug functionality
+; debug functionality
 
-;; (native!)
+(native!)
 
-;; (def f (frame :title "bliat"))
+(def f (frame :title "bliat"))
 
-;; (defn display "Display function for opened window" [content]
-;;   (config! f :content content)
-;;   content)
+(defn display "Display function for opened window" [content]
+  (config! f :content content)
+  content)
 
-;; (display (generate-configuration-form {:one "bliat"
-;;                                        :two "rhre"
-;;                                        :other ["one" "two" "thee" "you" "back" "to" "me"]
-;;                                        :other-selector ["one" "two" "thee" "you" "back" "to" "me"]
-;;                                        :one-more true
-;;                                        :StyleBox-1 {:change-style true
-;;                                                     :Inbaded-Panel-2 {:styles-select ["dark" "ligth"]
-;;                                                                       :color "#ffffff"
-;;                                                                       :background-color "#111000"}}
-;;                                        :StyleBox-2 {:change-style true
-;;                                                     :Inbaded-Panel-2 {:color "#ffffff"
-;;                                                                       :background-color "#111000"}}
-;;                                        :costam "jeszcze"}))
+(display (generate-configuration-form {:one "bliat"
+                                       :two "rhre"
+                                       :other ["one" "two" "thee" "you" "back" "to" "me"]
+                                       :other-selector ["one" "two" "thee" "you" "back" "to" "me"]
+                                       :one-more true
+                                       :StyleBox-1 {:change-style true
+                                                    :Inbaded-Panel-2 {:styles-select ["dark" "ligth"]
+                                                                      :color "#ffffff"
+                                                                      :background-color "#111000"}}
+                                       :StyleBox-2 {:change-style true
+                                                    :Inbaded-Panel-2 {:color "#ffffff"
+                                                                      :background-color "#111000"}}
+                                       :costam "jeszcze"}))
 
-;; (-> f pack! show!)
+(-> f pack! show!)
 
 
 ;;;;;;;;;;;;;

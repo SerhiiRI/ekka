@@ -94,10 +94,10 @@
 
 ; (pm (arr 1 (+ 2) (+ 3)))
 ; (arr 1 (+ 2) (+ 3))
+ 
+; ===================================================================================== Border panel + flow panel
 
-
-
-; OKNO Z PRZYCISKAMI MENU
+; Makro na przycisk
 ; (defmacro menu_btn
 ;   [txt] `(label :text ~txt
 ;                 :background .bg_btn
@@ -107,6 +107,7 @@
 ;                 :font {:size 12}
 ;                 :border (line-border :right 2 :color .bg)))
 ; 
+
 ; (def app
 ;   (border-panel
 ;    :north (flow-panel 
@@ -122,22 +123,52 @@
 ;    :center (button :text "Click me")
 ;    :background .bg))
 
-(defmacro alx_hmargin
-  "Macro to tworzy pusty label działający jako margines boczny, 
-gdyż seesaw ma najchujowszą dokumentację jaką widziałem 
-przez co nie mam pojęcia jak działają marginesy i czy w ogóle są :)."
-  ([] `(label :text ""
-              :background .bg
-              :size [1 :by 1]))
-  ([x] `(label :text ""
-               :background .bg
-               :size [~x :by .btn_vsize]))
-  ([x y] `(label :text ""
-                 :background .bg
-                 :size [~x :by ~y]))
-  ([x y color] `(label :text ""
-                       :background ~color
-                       :size [~x :by ~y])))
+
+; ===================================================================================== left-right-split
+
+
+; PODOBNIE JAK WYŻEJ
+; (def app
+;   (border-panel :background .bg
+;                 :center (left-right-split (border-panel :background "#40a1b3"
+;                                                         :center (label :text "Mr. Jarman"
+;                                                                        :border 0))
+;                                           (border-panel :background "#d5e7eb"
+;                                                         :center (label :text "Login Panel"
+;                                                                        :border 0))
+;                                           :divider-location 1/3)))
+
+
+
+; ===================================================================================== Makro na własny przycisko-label
+
+
+; Definicja własnego przycisku
+; (defmacro menu_btn
+;   [txt] `(label :text ~txt
+;                 :background .bg_btn
+;                 :foreground .fg
+;                 :size [.btn_hsize :by .btn_vsize]
+;                 :halign :center
+;                 :font {:size 12}
+;                 :border (line-border :right 2 :color .bg)))
+
+
+; ===================================================================================== Własne style jako wektor później doczepiany
+
+
+; Styl przycisku
+; (def .btn (vector :background "#7d75bf"
+;                         :foreground "#000"
+;                         :halign :center
+;                         :size [100 :by 25]
+;                         :font {:size 12}
+;                         :border (line-border 1 "#000")))
+
+; Użycie takiego zdefiniowanego stylu dzieje się za pomocą takiej formułki (apply label :text "Mój tekst" .btn) co tworzy nam label z doczepinymi stylami
+
+
+; ===================================================================================== Migpanel na wstępie
 
 
 ; MIG PANEL
@@ -159,14 +190,28 @@ przez co nie mam pojęcia jak działają marginesy i czy w ogóle są :)."
 ;                                            ])))
 
 
+; ===================================================================================== Migpanel test szablonu
 
-; PODOBNIE JAK WYŻEJ
-; (def app
-;   (border-panel :background .bg
-;                 :center (left-right-split (border-panel :background "#40a1b3"
-;                                                         :center (label :text "Mr. Jarman"
-;                                                                        :border 0))
-;                                           (border-panel :background "#d5e7eb"
-;                                                         :center (label :text "Login Panel"
-;                                                                        :border 0))
-;                                           :divider-location 1/3)))
+
+; Używając mig panel można tworzyć layout niczym w gridzie css'owym albo nawet flexie
+; 
+; Styl przycisku
+; (def .login_btn (vector :background "#7d75bf"
+;                         :foreground "#000"
+;                         :halign :center
+;                         :font {:size 12}
+;                         :border (line-border 1 "#000")))
+; 
+; MigLayout
+; (def login-panel
+; (border-panel :background .bg
+; :center (mig-panel :constraints ["wrap 4"
+;                                  "0px[grow, fill]0px[grow, fill]0px[grow, fill]0px[grow, fill]0px"
+;                                  "0px[grow, fill]0px[50px, fill]0px"]
+;                    :border 0
+;                    :items [
+;                            [(apply label :text "Left panel" .login_btn)]
+;                            [(apply label :text "Center" .login_btn) "span 2"]
+;                            [(apply label :text "Right panel" .login_btn)]
+;                            [(apply label :text "Footer" .login_btn) "span"]
+;                            ])))

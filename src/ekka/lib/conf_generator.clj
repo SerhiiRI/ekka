@@ -251,7 +251,8 @@
 ;;; DEBUG ;;;
 ;;;;;;;;;;;;;
 
-;;; debug functionality
+
+; debug functionality
 
 ;; (native!)
 
@@ -275,11 +276,6 @@
 ;;                                                                       :background-color "#111000"}}
 ;;                                        :costam "jeszcze"}))
 
-
-;; (def f (frame :title "bliat" :content (label :icon (clojure.java.io/file "/home/serhii/Pictures/Melisa/1M1uPcvgnTo.jpg"))))
-;; (def f (frame :title "bliat" :content (rounded-label :border 5
-;;                                      :background :darkgrey
-;;                                      :text "I'm a rounded label")))
 ;; (-> f pack! show!)
 
 

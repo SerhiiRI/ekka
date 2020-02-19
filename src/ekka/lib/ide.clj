@@ -28,13 +28,14 @@
 ;   content)
 
 ; STYLE GLOBALNE
-(def .bg "#fff")
-(def .fg "#333")
-(def .main_bar "#292929")
-(def .mr "#999")
-(def .jarman "#726ee5")
-(def .jarman_light "#908cfa")
-(def .focus "#89cc6c")
+(def .color_bg "#fff")
+(def .color_fg "#333")
+(def .color_main_bar "#292929")
+(def .color_jarman_grey .color_bg)
+(def .color_jarman_dark "#726ee5")
+(def .color_jarman_light "#96c1ea")
+(def .color_jarman_dark "#29295e")
+(def .color_focus "#89cc6c")
 
 (import java.awt.GraphicsEnvironment)
 (import java.awt.Font)
@@ -69,27 +70,33 @@
 
 (defn div
   "Kontener pod elememty niczym div z html"
-  ([] (border-panel :background .bg
+  ([] (border-panel :background .color_bg
                     :border 0
                     :center (label)))
-  ([item] (border-panel :background .bg
+  ([item] (border-panel :background .color_bg
                         :border 0
                         :center item))
-  ([item style] (apply border-panel :background .bg
+  ([item style] (apply border-panel :background .color_bg
                        :center item
                        :border 0
                        style)))
 
 (defn flow
   "Kontener pod elememty niczym div z html ale bez halign"
-  ([] (flow-panel :background .bg
+  ([] (flow-panel :background .color_bg
                   :border 0
+                  :vgap 0
+                  :hgap 0
                   :items [(label)]))
-  ([item] (flow-panel :background .bg
+  ([item] (flow-panel :background .color_bg
                       :border 0
+                      :vgap 0
+                      :hgap 0
                       :items [item]))
-  ([item style] (apply flow-panel :background .bg
+  ([item style] (apply flow-panel :background .color_bg
                        :border 0
+                       :vgap 0
+                       :hgap 0
                        :items [item]
                        style)))
 
@@ -98,11 +105,11 @@
   ([layout items] (mig-panel :constraints layout
                              :items items
                              :border 0
-                             :background .bg))
+                             :background .color_bg))
   ([layout items style] (apply mig-panel :constraints layout
                                :items items
                                :border 0
-                               :background .bg
+                               :background .color_bg
                                style)))
 
 (defn btn
@@ -135,35 +142,76 @@
                          (scaler (.getHeight image))
                          java.awt.Image/SCALE_SMOOTH))))
 
+(defn logo_title "Nazwa programu"
+  [&{:keys [font_name 
+            font_size
+            width
+            height 
+            color_dark 
+            color_light 
+            color_bg
+            valign] 
+     :or {font_name "Gabriola" 
+          font_size 22
+          width 100
+          height 20 
+          color_dark .color_jarman_dark 
+          color_light .color_jarman_light
+          color_bg .color_bg
+          valign ""}}]
+  (mig [""
+        (string/join ["10px[grow, fill" (if (= valign "center") (str ", center")) "]0px"])
+        "0px[grow, fill]0px"]
+       [[(mig [""
+               "0px[shrink 0]0px[shrink 0]0px[shrink 0]0px"
+               (string/join ["0px[shrink 0," .size_htitle "]0px"])]
+              [[(label :text "Mr. "
+                       :foreground color_dark
+                       :font {:name font_name :size font_size}
+                       :halign :right
+                       :background color_bg)]
+               [(label :text "Jar"
+                       :foreground color_light
+                       :font {:name font_name :size font_size}
+                       :halign :right
+                       :background color_bg)]
+               [(label :text "man"
+                       :foreground color_dark
+                       :font {:name font_name :size font_size}
+                       :halign :left
+                       :background color_bg)]]
+              (vector :background color_bg
+                      :size [.size_wtitle :by .size_htitle]))]]
+       (vector :background color_bg)))
+
+; (show-options (mig-panel))
+
 ; Style ================================================
 
-(def .flex_panel (vector :background .bg
+(def .flex_panel (vector :background .color_bg
                          :foreground "#000"
                          :halign :center))
 
 (def .login_input (vector :size [300 :by 30] 
                           :halign :center 
-                          :border (line-border :thickness 2 :color .jarman)
+                          :border (line-border :thickness 2 :color .color_jarman_dark)
                           :background "#fff"
                           :caret-color "#fff"
                           :font {:name "Cattedrale-Demo" :style :bold :size 14}))
  
 (def .login_btn (vector :size [150 :by 35]
                         :halign :center
-                        :background .jarman
+                        :background .color_jarman_dark
                         :foreground "#fff"
                         :font "CourierNew-bold-22"))
 
-(def .main_btn (vector :background .jarman 
+(def .main_btn (vector :background .color_jarman_dark 
                        :foreground "#fff" 
                        :size [20 :by 20]
                        :halign :center
                        :font "Arial-Bold-12"
                        :v-text-position :center
                        :h-text-position :center))
-
-(def .main_title (vector :font "Gabriola-bold-22"
-                         :border (empty-border :top 20)))
 
 ; Okno logowania ========================================
 (def login-panel
@@ -174,19 +222,24 @@
              [(mig ["wrap 1"
                     "0px[grow, fill, center]0px"
                     "20px[grow, fill]20px[45, fill]5px[45, fill]10px[45, fill]0px"]
-                   [[(label :focusable? true :halign :center :background .bg :icon (image-scale "src/ekka/resources/imgs/logo.png" 100))]
+                  ;  LOGO ========================================
+                   [[(mig ["wrap 1"
+                           "0px[grow, fill]0px[grow, fill]0px"
+                           "0px[grow, fill]0px[grow, fill]0px"]
+                      [[(label :focusable? true :halign :center :background .color_bg :icon (image-scale "src/ekka/resources/imgs/logo.png" 10))]
+                       [(logo_title :valign "center" :font_size 40)]])]
                     [(apply text :text "User"
-                      :listen [:focus-gained (fn [e] (config! e :border (line-border :thickness 2 :color .focus)))
-                               :focus-lost (fn [e] (config! e :border (line-border :thickness 2 :color .jarman)))]
-                      .login_input)]
-                    [(apply password :text "Password"
-                            :listen [:focus-gained (fn [e] (config! e :border (line-border :thickness 2 :color .focus)))
-                                     :focus-lost (fn [e] (config! e :border (line-border :thickness 2 :color .jarman)))]
+                            :listen [:focus-gained (fn [e] (config! e :border (line-border :thickness 2 :color .color_focus)))
+                                     :focus-lost (fn [e] (config! e :border (line-border :thickness 2 :color .color_jarman_dark)))]
                             .login_input)]
-                    [(btn "Connect" .login_btn [:focus-gained (fn [e] (config! e :background .jarman_light :border (line-border :thickness 2 :color .jarman_light)))
-                                                :focus-lost (fn [e] (config! e :background .jarman :border (line-border :thickness 2 :color .jarman)))
-                                                :mouse-entered (fn [e] (config! e :background .jarman_light :border (line-border :thickness 2 :color .jarman_light)))
-                                                :mouse-exited (fn [e] (config! e :background .jarman :border (line-border :thickness 2 :color .jarman)))
+                    [(apply password :text "Password"
+                            :listen [:focus-gained (fn [e] (config! e :border (line-border :thickness 2 :color .color_focus)))
+                                     :focus-lost (fn [e] (config! e :border (line-border :thickness 2 :color .color_jarman_dark)))]
+                            .login_input)]
+                    [(btn "Connect" .login_btn [:focus-gained (fn [e] (config! e :background .color_jarman_light :border (line-border :thickness 2 :color .color_jarman_light)))
+                                                :focus-lost (fn [e] (config! e :background .color_jarman_dark :border (line-border :thickness 2 :color .color_jarman_dark)))
+                                                :mouse-entered (fn [e] (config! e :background .color_jarman_light :border (line-border :thickness 2 :color .color_jarman_light) :cursor :hand))
+                                                :mouse-exited (fn [e] (config! e :background .color_jarman_dark :border (line-border :thickness 2 :color .color_jarman_dark)))
                                                 ])]])] 
              [(flow)] 
              [(flow) "span"]])))
@@ -197,7 +250,7 @@
 ; Szablon/funkcja tworząca dla okno programu ============
 (defn mainFrame
 [left-menu title right-menu content] 
-(frame :undecorated? true
+(frame :undecorated? false
        :resizable? true
        :content (mig ["wrap 1"
                       "0px[grow, fill]0px"
@@ -211,33 +264,29 @@
                       [content]])
        :minimum-size [900 :by 560]))
 
-
 ; Build okna programu ===================================
-(def f (mainFrame (horizontal-panel :background .main_bar
-                                    :items [(apply label :text "Mr. "
-                                                   :halign :right
-                                                   :foreground .mr
-                                                   :size [50 :by 20]
-                                                   .main_title)
-                                            (apply label :text "Jarman" 
-                                                   :halign :left  
-                                                   :foreground .jarman
-                                                   :size [100 :by 20]
-                                                   .main_title)]) 
-                  (label :background .main_bar :listen [:mouse-clicked (fn [e] ())]) 
-                  (flow-panel :background .main_bar
+(def f (mainFrame (logo_title :color_dark .color_jarman :color_light .color_jarman_grey :color_bg .color_main_bar)
+                  (label :background .color_main_bar :drag-enabled? true :listen [:mouse-clicked (fn [e](alert "123"))]) 
+                  (flow-panel :background .color_main_bar
                               :align :right
-                              :items [(apply label :listen [:mouse-clicked (fn [e] ())]
+                              :items [(apply label :listen [:mouse-clicked (fn [e] ())
+                                                            :mouse-entered (fn [e] (config! e :background .color_jarman_light :border (line-border :thickness 2 :color .color_jarman_light) :cursor :hand))
+                                                            :mouse-exited (fn [e] (config! e :background .color_jarman_dark :border (line-border :thickness 2 :color .color_jarman_dark)))]
                                              :text "_" .main_btn)
-                                      (apply label :listen [:mouse-clicked (fn [e] ())]
+                                      (apply label :listen [:mouse-clicked (fn [e] ())
+                                                            :mouse-entered (fn [e] (config! e :background .color_jarman_light :border (line-border :thickness 2 :color .color_jarman_light) :cursor :hand))
+                                                            :mouse-exited (fn [e] (config! e :background .color_jarman_dark :border (line-border :thickness 2 :color .color_jarman_dark)))]
                                              :text "[  ]" .main_btn)
-                                      (apply label :listen [:mouse-clicked (fn [e] (dispose! e))]
+                                      (apply label :listen [:mouse-clicked (fn [e] (dispose! e))
+                                                            :mouse-entered (fn [e] (config! e :background .color_jarman_light :border (line-border :thickness 2 :color .color_jarman_light) :cursor :hand))
+                                                            :mouse-exited (fn [e] (config! e :background .color_jarman_dark :border (line-border :thickness 2 :color .color_jarman_dark)))]
                                              :text "X" .main_btn)])
                   login-panel))
 
 (-> f pack! show!)
 ; Uruchomienie okna======================================
 
+
 ; (show-options (label))
-; (show-options (frame))
+; (show-options (flow-panel))
 ; (show-events (text))

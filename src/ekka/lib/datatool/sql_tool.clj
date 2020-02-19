@@ -222,18 +222,18 @@
                           (str "(" (string/join ", " (map #(eval `(where-procedure-parser ~%)) some-list)) ")"))
         into-sql-map (fn [some-list]
                        (str "(" (string/join ", " (map #(eval `(where-procedure-parser ~%)) (vals some-list))) ")"))]
-    `(str ~current-string " " ~(name table-name)
+    `(str ~current-string " " (name ~table-name)
           (cond (map? ~values)
-                (str " SET "      (string/join ", " (map #(apply pair-where-pattern %) ~values)))
+                (str " SET " (string/join ", " (map #(apply pair-where-pattern %) ~values)))
 
                 (and (seqable? ~values) (map? (first ~values)))
-                (str " VALUES "   (string/join ", " (map ~into-sql-map ~values)))
+                (str " VALUES " (string/join ", " (map ~into-sql-map ~values)))
 
                 (and (seqable? ~values) (seqable? (first ~values)))
-                (str " VALUES "   (string/join ", " (map ~into-sql-values ~values)))
+                (str " VALUES " (string/join ", " (map ~into-sql-values ~values)))
 
                 (seqable? ~values)
-                (str " VALUES "   (~into-sql-values ~values))
+                (str " VALUES " (~into-sql-values ~values))
 
                 :else nil))))
 
@@ -254,11 +254,17 @@
   for more, see the code `condp` block
   "
   [k] (if (string? k) k
-          (let [[sql-type n & _] (string/split (string/lower-case (name k)) #"-")
+          (let [[sql-type n s & _] (string/split (string/lower-case (name k)) #"-")
                 is? (fn [col x] (if (string? col) (= x col) (some #(= % x) col)))
                 charchain-types (fn [tt nn] (if-not nn (string/upper-case tt) (format "%s(%s)" (string/upper-case tt) nn)))
-                numeral-types (fn [tt nn] (if-not nn (string/upper-case tt) (format (if (is? ["signed" "unsigned" "zerofill"] nn) "%s %s" "%s(%s)")
-                                                                                   (string/upper-case tt) (string/replace (string/upper-case nn) "." "," ))))]
+                numeral-types (fn [tt nn] (if-not nn (string/upper-case tt)
+                                                  (format (if (is? ["signed" "unsigned" "zerofill"] nn) "%s %s"
+                                                              (if (and s (not (empty? s)))
+                                                                (if-let [_tmp (formater (keyword s))]
+                                                                  (str "%s(%s) " _tmp)
+                                                                  "%s(%s)") "%s(%s)"))
+                                                          (string/upper-case tt)
+                                                          (string/replace (string/upper-case nn) "." "," ))))]
             (condp is? sql-type
               "null"       "NULL"
               "nnull"      "NOT NULL"
@@ -282,7 +288,9 @@
 
               ["auto_increment" "autoincrement" "auto"] "AUTO_INCREMENT"
 
-              ""))))
+              ["default" "signed" "unsigned" "zerofill" ] (string/upper-case sql-type)
+              nil))))
+
 
 
 (defn create-column
@@ -298,10 +306,11 @@
   "
   [map-col]
   (let [[[col-name value]] (seq map-col)]
-     (cond (keyword? value) (format "`%s` %s" (name col-name) (formater value))
-           (string? value) (format "`%s` %s" (name col-name) value)
-           (seqable? value) (format "`%s` %s" (name col-name) (string/join " " (map formater value)))
-           :else "")))
+    (cond (keyword? value) (str (format "`%s`" (name col-name)) (if-let [x (formater value)] (str " " x)))
+          (string? value)  (str (format "`%s`" (name col-name)) (if-not (empty? value) (str " " value)))
+          (seqable? value) (str (format "`%s`" (name col-name)) (let [x (string/join " " (reduce #(if-let [f (formater %2)] (conj %1 f) %1) [] value))]
+                                                                  (if-not (empty? x) (str " " x))))
+          :else "")))
 
 
 (defmacro default-table-config-string [current-string _ table-name]
@@ -329,7 +338,7 @@
   [{:id :bigint-100} {:suka \"TINYTEXT\"}]"
   [current-string column-spec table-name]
   `(str ~current-string (format " `%s` (" ~table-name)
-        (string/join ", " [(create-column {:id [:bigint-20 :nnull :auto]}) 
+        (string/join ", " [(create-column {:id [:bigint-20-unsigned :nnull :auto]}) 
                            (let [cls# ~column-spec]
                              (cond (string? cls#) cls# 
                                    (map? cls#) (create-column cls#)
@@ -347,7 +356,7 @@
    (let [[colm rel-tbl] (map name (first (seq tables)))
          key-name (gensym table-name)]
       (str (format "KEY `%s` (`%s`), " (str key-name) colm)
-           (format "CONSTRAINT `%s` (`%s`) REFERENCES `%s` (`id`)" (str key-name) colm rel-tbl))))
+           (format "CONSTRAINT `%s` FOREIGN KEY (`%s`) REFERENCES `%s` (`id`)" (str key-name) colm rel-tbl))))
   ([table-name tables update-delete]
    (let [on-action #(condp = %2
                       :cascade (format " ON %s CASCADE" %1)
@@ -359,7 +368,7 @@
            key-name (gensym table-name)
            { on-delete :delete on-update :update} update-delete]
        (str (format "KEY `%s` (`%s`), " key-name colm)
-            (format "CONSTRAINT `%s` (`%s`) REFERENCES `%s` (`id`)" (str key-name) colm rel-tbl)
+            (format "CONSTRAINT `%s` FOREIGN KEY (`%s`) REFERENCES `%s` (`id`)" (str key-name) colm rel-tbl)
             (if on-delete (on-action "DELETE" on-delete))
             (if on-update (on-action "UPDATE" on-update))
             )))))
@@ -467,9 +476,29 @@
 (define-sql-operation delete *accepted-delete-rules* create-rule-pipeline)
 (define-sql-operation update *accepted-update-rules* create-rule-pipeline)
 (define-sql-operation select *accepted-select-rules* (comp select-empty-table-pipeline-applier create-rule-pipeline))
-(define-sql-operation create-table "CREATE TABLE IF NOT EXIST" *accepted-ctable-rules* (comp empty-engine-pipeline-applier create-rule-pipeline))
+(define-sql-operation create-table "CREATE TABLE IF NOT EXISTS" *accepted-ctable-rules* (comp empty-engine-pipeline-applier create-rule-pipeline))
 (define-sql-operation alter-table "ALTER TABLE" *accepted-alter-table-rules* (comp get-first-macro-from-pipeline create-rule-pipeline))
 
+
+
+;;;;;;;;;;;;;;;;;;;;;;;
+;;; Create database ;;;
+;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn drop-database [database-name]
+  {:pre [(string? database-name)]}
+  (format "DROP DATABASE `%s`;" (string/trim database-name)))
+
+(defn create-database [database-name & {:keys [charset collate] :or {charset "utf8" collate "utf8_general_ci"}}]
+  {:pre [(string? database-name)]}
+  (apply format "CREATE DATABASE `%s` CHARACTER SET = '%s' COLLATE = '%s';" (map string/trim [database-name charset collate]) ))
+
+(defn show-databases []
+  "SHOW DATABASES")
+
+(defn drop-table [database-table]
+  {:pre [(string? database-table)]}
+  (format "DROP TABLE `%s` IF EXISTS" (string/trim database-table)) );
 
 ;; (alter-table :user
 ;;              :drop-column :bliat)

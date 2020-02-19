@@ -1,4 +1,17 @@
-﻿;;; Jou bro, jeśli nie wiedziałeś, to wewnątrz bibliteki `seesaw.dev` znajdują sie dwie funkcji:
+﻿(ns ekka.lib.conf-generator
+  (:use seesaw.dev
+        seesaw.core
+        seesaw.mig
+        seesaw.chooser
+        seesaw.border
+        seesaw.make-widget
+        seesaw.widgets.rounded-label)
+  (:require [clojure.string :as string]))
+
+
+(rounded-label)
+
+;;; Jou bro, jeśli nie wiedziałeś, to wewnątrz bibliteki `seesaw.dev` znajdują sie dwie funkcji:
 ;;; Dwie funkcje drukują to w STDOUT, czuli tak niby dają println. To funkcje wyłącznie dla
 ;;; podpowiadania "co?" i "jak?" robić z kompoenntem którego chcesz używać.
 ;;; 
@@ -69,16 +82,6 @@
 ;; @ref ;=> "chuj"
 
 ;; używam tego dla tego żebym z komponentów i ich listenerów zmieniać samą mapę konfgiuracji
-
-
-(ns ekka.lib.conf-generator
-  (:use seesaw.dev
-        seesaw.core
-        seesaw.mig
-        seesaw.chooser
-        seesaw.border
-        seesaw.make-widget)
-  (:require [clojure.string :as string]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -155,6 +158,13 @@
                                                     (apply str "0x" (map first (partition 2 clr)))))]
                              (if (< hex 1365) "#FFF" "#000")))
       (config! target :background "#FFFFFF" :foreground "#000000"))))
+
+;; (read-string "0xFFFFFF")
+;; (read-string "0x000000")
+
+;; (defn gradient-generator )
+
+;; (Integer/toHexString (bit- 0xFF0000 0x251242))
 
 
 ;;; templates for simple text configuration option
@@ -233,37 +243,45 @@
                          [(button :text "Save config" :listen [:action (fn [e] (config-save save-function))])])))))))
 
 
+(show-options (horizontal-panel))
 
+
+(seesaw.widgets.rounded-label)
 ;;;;;;;;;;;;;
 ;;; DEBUG ;;;
 ;;;;;;;;;;;;;
 
+
 ; debug functionality
 
-(native!)
+;; (native!)
 
-(def f (frame :title "bliat"))
+;; (def f (frame :title "bliat"))
 
-(defn display "Display function for opened window" [content]
-  (config! f :content content)
-  content)
+;; (defn display "Display function for opened window" [content]
+;;   (config! f :content content)
+;;   content)
 
-(display (generate-configuration-form {:one "bliat"
-                                       :two "rhre"
-                                       :other ["one" "two" "thee" "you" "back" "to" "me"]
-                                       :other-selector ["one" "two" "thee" "you" "back" "to" "me"]
-                                       :one-more true
-                                       :StyleBox-1 {:change-style true
-                                                    :Inbaded-Panel-2 {:styles-select ["dark" "ligth"]
-                                                                      :color "#ffffff"
-                                                                      :background-color "#111000"}}
-                                       :StyleBox-2 {:change-style true
-                                                    :Inbaded-Panel-2 {:color "#ffffff"
-                                                                      :background-color "#111000"}}
-                                       :costam "jeszcze"}))
+;; (display (generate-configuration-form {:one "bliat"
+;;                                        :two "rhre"
+;;                                        :other ["one" "two" "thee" "you" "back" "to" "me"]
+;;                                        :other-selector ["one" "two" "thee" "you" "back" "to" "me"]
+;;                                        :one-more true
+;;                                        :StyleBox-1 {:change-style true
+;;                                                     :Inbaded-Panel-2 {:styles-select ["dark" "ligth"]
+;;                                                                       :color "#ffffff"
+;;                                                                       :background-color "#111000"}}
+;;                                        :StyleBox-2 {:change-style true
+;;                                                     :Inbaded-Panel-2 {:color "#ffffff"
+;;                                                                       :background-color "#111000"}}
+;;                                        :costam "jeszcze"}))
 
-(-> f pack! show!)
+;; (-> f pack! show!)
 
+
+;; (def w (window :height 200
+;;                :width 200 :content (label "sufdsfsadfdsaka")))
+;; (-> w pack! show!)
 
 ;;;;;;;;;;;;;
 ;;; TESTS ;;;
@@ -278,3 +296,105 @@
 ;; (display (listbox-component (configuration-change configuration) [:one] ["i" "love" "you" "all" "the" "time"]))
 ;; (display (horizontal-config-panel (vector (listbox-component (configuration-change configuration) [:one] ["i" "love" "you" "all" "the" "time"])) :suka-nachuj))
 ;; (display (vertical-config-panel :suka-nachuj (listbox-component (configuration-change configuration) [:one] ["i" "love" "you" "all" "the" "time"])))
+
+
+
+;; (use 'clojure.reflect)
+
+;; (defn all-methods [x]
+;;     (->> x reflect 
+;;            :members 
+;;            (filter :return-type)  
+;;            (map :name) 
+;;            sort 
+;;            (map #(str "." %) )
+;;            distinct
+;;            println))
+
+
+
+;; (defn ^sun.awt.image.ToolkitImage image-scale
+;;   "Function scale image by percent size.
+;;   Return `sun.awt.image.ToolkitImage` type.
+
+;;   Example:
+;;     (image-scale \"/path/to/photo\" 100)
+
+;;   See more:
+;;     javadoc `sun.awt.image.ToolkitImage`
+;;     javadoc `sun.awt.Image`"
+;;   ([image-path percent]
+;;    {:pre [(not (empty? image-path))]}
+;;    (let [image (.getImage (icon (clojure.java.io/file image-path)))
+;;          scaler (comp int #(Math/ceil %) #(* % (/ percent 100.0)))]
+;;      (.getScaledInstance image
+;;                          (scaler (.getWidth image))
+;;                          (scaler (.getHeight image))
+;;                          java.awt.Image/SCALE_SMOOTH))))
+
+
+
+;; (def f (frame :title "bliat" :content (label :icon (clojure.java.io/file "/home/serhii/Pictures/Melisa/1M1uPcvgnTo.jpg"))))
+;; (-> f pack! show!)
+
+
+
+
+
+;; (ns ^{:doc "Function to create a label with a rounded border and background."
+;;       :author "Dave Ray"}
+;;   seesaw.widgets.rounded-label
+;;   (:use [seesaw.core :only [label label-options]]
+;;         [seesaw.options :only [apply-options]]
+;;         [seesaw.options :only [apply-options option-map default-option]]
+;;         [seesaw.widget-options :only [WidgetOptionProvider]]
+;;         [seesaw.graphics :only [anti-alias]]))
+
+;; (defn- rounded-label-proxy [paint]
+;;   (proxy [javax.swing.JLabel] []
+;;     (isOqaque [] false)
+;;     (setOpaque [v])
+;;     (paintComponent [g]
+;;       (anti-alias g)
+;;       (if paint (paint this g))
+;;       (proxy-super paintComponent g))))
+
+;; (def ^{:private true} RoundedLabel (class (rounded-label-proxy nil)))
+
+;; (defn my-rounded-label [& opts]
+;;   (let [radius 15
+;;         paint (fn [^javax.swing.JLabel c ^java.awt.Graphics g]
+;;                 (doto g
+;;                   (.setColor (.getBackground c))
+;;                   (.fillRoundRect
+;;                     0 0 (dec (.getWidth c)) (dec (.getHeight c))
+;;                     @radius @radius)))
+;;         widget (rounded-label-proxy paint)]
+;;     (apply-options widget opts)))
+
+;; (comment
+;;   (use '[seesaw.core]
+;;        '[seesaw.widgets.rounded-label])
+;;   (-> (frame :content (rounded-label :border 5
+;;                                      :background :darkgrey
+;;                                      :text "I'm a rounded label"))
+;;     pack! show!))
+
+
+
+;; (let [lbl (javax.swing.JLabel. "SUKA")
+;;       g (java.awt.Graphics2D)]
+;;   (doto g
+;;     (.setBackground java.awt.Color/CYAN)
+;;     (.fillOval 0 0 30 30)
+;;     (.drawString "SUKA" 10 10)))
+
+;; (cast java.awt.Graphics (javax.swing.JLabel. "SUKA"))
+
+;; (def df (frame :title "bliat" :content (scrollable (vertical-panel :items [(label :text "suka") (label :text "chuj")]))))
+;; (-> df pack! show!)
+
+;; (show-options (mig-panel))
+
+;; (show-events (text))
+

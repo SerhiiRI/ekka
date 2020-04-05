@@ -1,6 +1,6 @@
-(ns ekka.core-test
+(ns hrtime.core-test
   (:require [clojure.test :refer :all]
-            [ekka.core :refer :all]))
+            [hrtime.core :refer :all]))
 
 (deftest a-test
   (testing "FIXME, I fail."

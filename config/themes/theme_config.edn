@@ -1,0 +1,3 @@
+{:selected-them0-doc {:header "Konfiguracja skórki"
+                      :description "Posiada konfiguracje styłowe globalne dla calego programu. Pole 'Selected theme' zwiera wybraną przez użytkownika skórkę. Która się uruchomi po ponownym restarcie aplikacji."} 
+ :selected-theme-select ["jarman_light"]}

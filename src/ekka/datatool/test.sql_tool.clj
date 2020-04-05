@@ -739,14 +739,38 @@
 
 
 
+;; (alter-table :user
+;;              :drop-column :bliat)
+
+;; (alter-table :user
+;;              :drop-foreign-key :bliat)
+
+;; (alter-table :user
+;;              :add-foreign-key [{:id_permission :permission} {:update :cascade}])
+
+;; (alter-table :user
+;;              :add-column {:suka [:boolean]})
+
+;; (select :user_table)
 
 
+;; (select :user_table
+;;         :left-join {:METADATA :id_metadata} 
+;;         :inner-join {:CREDENTIAL :id_credential}
+;;         :column [:name :dla_mamusi :CREDENTAIL.login]
+;;         :order [:name :desc]
+;;         :where {:CREDENTAIL.login "XXXpussy_destroyer69@gmail.com"
+;;                 :CREDENTAIL.password "Aleksandr_Bog69"
+;;                 :name "Aleksandr"
+;;                 :dla_mamusi "Olek"
+;;                 :METADATA.merried false})
 
-
-
-
-
-
+;; (create-table :table
+;;               :columns [{:name [:varchar-100 :null]}
+;;                         {:some-int :integer-200}
+;;                         {:id_other_table :bigint-20}]
+;;               :foreign-keys [{:id_other_table :other_table} {:update :cascade :delete :null}]
+;;               :table-config {:engine "InnoDB" :charset "utf8"})
 
 
 

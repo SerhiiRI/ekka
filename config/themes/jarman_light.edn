@@ -1,0 +1,104 @@
+{
+    :frame {
+        :width 1200,
+        :heigh 700
+    },
+    :color {
+        :jarma0-doc "Podstawowe kolory Jarman IDE",
+        :jarman {
+            :bar "#292929",
+            :jarman "#726ee5",
+            :light "#96c1ea",
+            :dark "#29295e"
+        },
+        :background {
+            :main "#eee",
+            :button "#eee",
+            :button_hover "#96c1ea",
+            :button_config "#fff",
+            :button_selected "#ccc",
+            :button_main "#fff"
+        },
+        :main-button {
+            :background "#fff",
+            :clicked "#96c1ea"
+        },
+        :foreground {
+            :main "#000",
+            :button "#000",
+            :button_hover "#000",
+            :button_selected "#fff",
+            :doc-font-color "#999",
+            :.txt-font-color "#000"
+        },
+        :border "#ccc"
+    },
+    :lan0-doc {
+        :space 20,
+        :header "Konfiguracja językowa",
+        :description "Ustawienie języka dla komponentów w aplikacji.",
+        :parameters [
+            "button_save \"Zapisz\""
+        ]
+    },
+    :font {
+        :bold "Ubuntu Bold",
+        :regular "Ubuntu",
+        :medium "Ubuntu Medium",
+        :size-small 12,
+        :style :plain,
+        :size-medium 16,
+        :size-normal 14,
+        :size-large 18,
+        :light "Ubuntu Light"
+    },
+    :fon0-doc "Konfiguracja głównego okna HRTime",
+    :ui {
+        :special-butto0-doc "Specjalny przycisk, ala Exportuj i t.d.",
+        :special-button {
+            :background "#3b8276",
+            :background-hover "#77e0cf",
+            :foreground "#fff",
+            :foreground-hover "#000",
+            :horizontal-align :center,
+            :cursor :hand,
+            :font-style :bold
+        }
+    },
+    :language {
+               :buttons {
+                         :remove "Usuń",
+                         :settings "Ustawienia",
+                         :save "Zapisz",
+                         :search "Szukaj",
+                         :test-connection-success "Łączenia powiodło się",
+                         :test-connection-fail "Błąd łączenia, sprawdz konfiguracje",
+                         :run-app "Połącz",
+                         :register "Rejestr",
+                         :back "Cofnij",
+                         :disconnect-RFID "Odłącz",
+                         :rfid "Karty RFID",
+                         :filter-clean "Usuń filtr",
+                         :inputs-clean "Wyczyść",
+                         :workers "Pracownicy",
+                         :test-connection "Testuj połączenie",
+                         :save-and-reload "Zapisz i przeładuj",
+                         :excel-export "Exportuj do Excela"
+                         }
+               :alerts {
+                        :changes-saved "Zapisano zmiany do pliku!",
+                        :changes-saved-but-need-reload "Zapisano zmiany! Będą one widoczne po restarcie aplikacji.",
+                        :testing-connection "Łączenie z bazą"
+                        }
+               :basic {:no "Nie",
+                       :yes "Tak"}
+               },
+    :fram0-doc "Konfiguracja głównego okna HRTime applikacji",
+    :colo0-doc {
+        :header "Konfiguracja kolorów skórki",
+        :description "blok konfiguracji kolorów zawiera grupowane presety\n kolorów dla tylko podanej skórki. Każdy parameter tego zestawu\n konfigurowany przez pola, które zmieniają kolorki przez podania do nich kolorków\n w systemie heksadycemalnym, 6-ciu, lub 3-szy kolorowym. Kolor jest kolorem\n tylko wtedy jak z przodu jest używany tak zwany symbol\n HEX-kolorów `#`(hash).",
+        :parameters [
+            "#FFF" "#fff" "#fFf" "#123ABC" "#123abc" "#3AF"
+        ]
+    }
+}

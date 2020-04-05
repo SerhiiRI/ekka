@@ -1,0 +1,7 @@
+{:top [{:logo "path"}],
+ :middle [{:button [{:text "Start"}
+                    {:onClick (fn [e] (alert "I am in!"))}]},
+          {:button [{:text "Start"}
+                    {:onClick (fn [e] (alert "I am in!"))}]}],
+ :bottom [{:icon-button [{:icon "path"}
+                         {:onClick (fn [e] (alert "Settings!"))}]}]}
